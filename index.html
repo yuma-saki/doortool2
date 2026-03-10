@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>建具作図ツール V109 - 配置調整・下寄り版</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #eef2f3; padding: 20px; display: flex; flex-direction: column; align-items: center; margin: 0; }
+        .container { width: 1650px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: grid; grid-template-columns: 420px 1fr; gap: 20px; }
+        h1 { grid-column: 1 / -1; font-size: 18px; text-align: center; color: #2c3e50; border-bottom: 3px solid #e67e22; padding-bottom: 10px; margin-top:0; }
+        .controls { display: flex; flex-direction: column; gap: 6px; max-height: 92vh; overflow-y: auto; padding-right: 15px; }
+        .group { background: #fff5eb; padding: 10px; border-radius: 8px; border-left: 5px solid #e67e22; margin-bottom: 4px; }
+        .group-title { font-size: 11px; color: #d35400; margin-bottom: 6px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #ffdec0; }
+        label { font-size: 11px; font-weight: bold; color: #333; display: block; margin-top: 4px; }
+        input, select { width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 13px; }
+        .spec-row { display: grid; grid-template-columns: 80px 1fr 30px; gap: 5px; margin-bottom: 4px; }
+        .btn-add { background: #27ae60; padding: 6px; font-size: 11px; margin-top: 5px; border: none; border-radius: 4px; color: white; cursor: pointer; width: 120px; }
+        .btn-del { background: #e74c3c; padding: 2px 5px; font-size: 10px; border: none; border-radius: 4px; color: white; height: 24px; cursor: pointer; }
+        
+        .action-buttons { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-print { flex: 1; padding: 12px; background: #e67e22; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #c0392b; }
+        .btn-dxf { flex: 1; padding: 12px; background: #34495e; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 0 #2c3e50; }
+        
+        .preview-area { background: #dcdde1; display: flex; justify-content: center; align-items: center; border: 2px solid #7f8fa6; position: relative; overflow: hidden; }
+        canvas { background: white; display: block; max-width: 100%; height: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.2); cursor: grab; }
+        canvas:active { cursor: grabbing; }
+
+        .hint-badge {
+            position: absolute; bottom: 10px; right: 10px; background: rgba(44, 62, 80, 0.85); color: white; 
+            padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; pointer-events: none; z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        @media print {
+            @page { size: landscape; margin: 0; }
+            body { background: white; padding: 0; margin: 0; }
+            .controls, h1, .hint-badge { display: none !important; }
+            .container { width: 100%; display: block; padding: 0; margin: 0; box-shadow: none; border: none; }
+            .preview-area { background: none; border: none; padding: 0; width: 100%; height: 100vh; }
+            canvas { width: 100%; height: auto; max-height: 100vh; object-fit: contain; box-shadow: none; }
+        }
+    </style>
+</head>
+<body onload="drawPreview()">
+
+<div class="container">
+    <h1>建具作図ツール V109 (配置調整・下寄り版)</h1>
+    <div class="controls">
+        
+        <div class="group">
+            <div class="group-title">1. 図面情報 (表題欄)</div>
+            <label>会社名</label><input type="text" id="compName" value="(株) 崎原工房" oninput="drawPreview()">
+            <label>工事名</label><input type="text" id="pjName" value="〇〇邸 新築工事" oninput="drawPreview()">
+            <label>図面名</label><input type="text" id="dwgName" value="建具姿図・詳細図" oninput="drawPreview()">
+            <div style="display:flex; gap:5px;">
+                <div><label>縮尺</label><input type="text" id="scaleStr" value="1/20" oninput="drawPreview()"></div>
+                <div><label>日付</label><input type="text" id="dateStr" value="2026/03/10" oninput="drawPreview()"></div>
+                <div><label>担当</label><input type="text" id="managerStr" value="設計部" oninput="drawPreview()"></div>
+                <div><label>図番</label><input type="text" id="dwgNoStr" value="A-01" oninput="drawPreview()"></div>
+            </div>
+        </div>
+
+        <div class="group">
+            <div class="group-title">2. 基本寸法・框</div>
+            <div style="display:flex; gap:5px;">
+                <div><label>全幅 (W)</label><input type="number" id="w" value="786" oninput="drawPreview()"></div>
+                <div><label>全高 (H)</label><input type="number" id="h" value="2320" oninput="drawPreview()"></div>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <div><label>左框</label><input type="number" id="tsl" value="60" oninput="drawPreview()"></div>
+                <div><label>右框</label><input type="number" id="tsr" value="60" oninput="drawPreview()"></div>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <div><label>上山</label><input type="number" id="tt" value="80" oninput="drawPreview()"></div>
+                <div><label>下山</label><input type="number" id="tb" value="100" oninput="drawPreview()"></div>
+            </div>
+            <label>見込み(D)</label><input type="number" id="d" value="30" oninput="drawPreview()">
+        </div>
+
+        <div class="group">
+            <div class="group-title">3. 中桟・組子詳細</div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
+                <input type="checkbox" id="useMid" onchange="drawPreview()" checked>
+                <label style="margin:0;">中桟有効</label>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <div><label>見付(TM)</label><input type="number" id="tm" value="60" oninput="drawPreview()"></div>
+                <div><label>中心高</label><input type="number" id="hm" value="505" oninput="drawPreview()"></div>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <div><label>上 立/横</label><input type="number" id="stT" value="5" oninput="drawPreview()"></div>
+                <div><label>‎</label><input type="number" id="shT" value="2" oninput="drawPreview()"></div>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <div><label>下 立/横</label><input type="number" id="stB" value="5" oninput="drawPreview()"></div>
+                <div><label>‎</label><input type="number" id="shB" value="0" oninput="drawPreview()"></div>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <div><label>立見付</label><input type="number" id="ktv" value="15" oninput="drawPreview()"></div>
+                <div><label>横見付</label><input type="number" id="kth" value="15" oninput="drawPreview()"></div>
+            </div>
+        </div>
+
+        <div class="group">
+            <div class="group-title">4. 引き手設定</div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
+                <input type="checkbox" id="showHikite" onchange="drawPreview()" checked>
+                <label style="margin:0;">引き手を表示</label>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <div><label>縦/横</label><input type="number" id="hikiH" value="100" oninput="drawPreview()"></div>
+                <div><label>‎</label><input type="number" id="hikiW" value="50" oninput="drawPreview()"></div>
+                <div><label>中心高</label><input type="number" id="hikiY" value="900" oninput="drawPreview()"></div>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <div><label>取付側</label>
+                    <select id="hikiSide" onchange="drawPreview()">
+                        <option value="left">左寄り</option>
+                        <option value="right" selected>右寄り</option>
+                    </select>
+                </div>
+                <div><label>チリ</label><input type="number" id="hikiX" value="30" oninput="drawPreview()"></div>
+            </div>
+        </div>
+
+        <div class="group">
+            <div class="group-title">5. 仕上・金物仕様</div>
+            <div id="specContainer">
+                <div class="spec-row">
+                    <input type="text" class="spec-label" value="本体" oninput="drawPreview()">
+                    <input type="text" class="spec-value" value="人工タモ塗装品" oninput="drawPreview()">
+                    <button class="btn-del" onclick="removeRow(this)">×</button>
+                </div>
+                <div class="spec-row">
+                    <input type="text" class="spec-label" value="金物" oninput="drawPreview()">
+                    <input type="text" class="spec-value" value="長角引手 ダークブラウン" oninput="drawPreview()">
+                    <button class="btn-del" onclick="removeRow(this)">×</button>
+                </div>
+            </div>
+            <button class="btn-add" onclick="addRow()">＋ 行を追加</button>
+            <div style="margin-top:10px;">
+                <label>特記事項</label>
+                <input type="text" id="specNote" value="＊現場寸法確認の上製作" style="color:#c0392b;" oninput="drawPreview()">
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn-print" onclick="resetViewAndPrint()">印刷 / PDF保存</button>
+            <button class="btn-dxf" onclick="exportDXF()">DXF出力 (実寸・縮尺連動)</button>
+        </div>
+    </div>
+
+    <div class="preview-area" id="previewContainer">
+        <canvas id="previewCanvas" width="1120" height="792"></canvas>
+        <div class="hint-badge">🔍 ホイール: 拡大縮小 ｜ 🖱️ ドラッグ: 移動 ｜ 🖱️🖱️ Wクリック: 全体表示</div>
+    </div>
+</div>
+
+<script>
+function addRow() {
+    const div = document.createElement('div');
+    div.className = 'spec-row';
+    div.innerHTML = `<input type="text" class="spec-label" oninput="drawPreview()"><input type="text" class="spec-value" oninput="drawPreview()"><button class="btn-del" onclick="removeRow(this)">×</button>`;
+    document.getElementById('specContainer').appendChild(div);
+    drawPreview();
+}
+function removeRow(btn) { btn.parentElement.remove(); drawPreview(); }
+
+const getVal = (id, def) => {
+    const el = document.getElementById(id);
+    if(!el || el.value === "") return def;
+    const num = parseFloat(el.value);
+    return isNaN(num) ? def : num;
+};
+
+function getValues() {
+    return {
+        compName: document.getElementById('compName').value,
+        pjName: document.getElementById('pjName').value,
+        dwgName: document.getElementById('dwgName').value,
+        scaleStr: document.getElementById('scaleStr').value,
+        dateStr: document.getElementById('dateStr').value,
+        managerStr: document.getElementById('managerStr').value,
+        dwgNoStr: document.getElementById('dwgNoStr').value,
+        W: getVal('w', 786), H: getVal('h', 2320), D: getVal('d', 30),
+        TT: getVal('tt', 80), TB: getVal('tb', 100), TSL: getVal('tsl', 60), TSR: getVal('tsr', 60),
+        useMid: document.getElementById('useMid').checked,
+        TM: getVal('tm', 60), HM: getVal('hm', 505),
+        showHikite: document.getElementById('showHikite').checked,
+        hikiH: getVal('hikiH', 100), hikiW: getVal('hikiW', 50), hikiY: getVal('hikiY', 900),
+        hikiX: getVal('hikiX', 30), hikiSide: document.getElementById('hikiSide').value,
+        stT: getVal('stT', 5), shT: getVal('shT', 2),
+        stB: getVal('stB', 5), shB: getVal('shB', 0),
+        ktv: getVal('ktv', 15), kth: getVal('kth', 15),
+        specLabels: Array.from(document.querySelectorAll('.spec-label')).map(el => el.value),
+        specValues: Array.from(document.querySelectorAll('.spec-value')).map(el => el.value),
+        specNote: document.getElementById('specNote').value
+    };
+}
+
+let ctx = null;
+let _isDXF = false;
+let _dxfStr = "";
+let _dxfFactor = 1.0; 
+const canvasHeight = 792;
+
+// --- ズーム・パン用のグローバル変数 ---
+let viewZoom = 1.0;
+let viewOffsetX = 0;
+let viewOffsetY = 0;
+
+function outLine(x1, y1, x2, y2, lw=0.6, color="#000") {
+    if(!_isDXF) {
+        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw;
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    } else {
+        let X1 = x1 * _dxfFactor;
+        let Y1 = (canvasHeight - y1) * _dxfFactor;
+        let X2 = x2 * _dxfFactor;
+        let Y2 = (canvasHeight - y2) * _dxfFactor;
+        let cCode = (color === "#c0392b") ? 1 : 7; 
+        _dxfStr += `  0\r\nLINE\r\n  8\r\n0\r\n 62\r\n${cCode}\r\n 10\r\n${X1.toFixed(2)}\r\n 20\r\n${Y1.toFixed(2)}\r\n 30\r\n0.00\r\n 11\r\n${X2.toFixed(2)}\r\n 21\r\n${Y2.toFixed(2)}\r\n 31\r\n0.00\r\n`;
+    }
+}
+
+function outRect(x, y, w, h, lw=1.0, color="#000") {
+    outLine(x, y, x+w, y, lw, color); outLine(x+w, y, x+w, y+h, lw, color);
+    outLine(x+w, y+h, x, y+h, lw, color); outLine(x, y+h, x, y, lw, color);
+}
+
+function outText(txt, cx, cy, size, isVert=false, color="#000", align="center") {
+    let textStr = String(txt);
+    let textLen = 0;
+    for(let i=0; i<textStr.length; i++) {
+        textLen += (textStr.charCodeAt(i) > 255) ? 1.0 : 0.6;
+    }
+    let w = textLen * size; 
+
+    if(!_isDXF) {
+        ctx.fillStyle = color; ctx.font = `bold ${size}px sans-serif`;
+        ctx.textAlign = align; ctx.textBaseline = "middle";
+        if(isVert) {
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(-Math.PI/2);
+            ctx.fillText(textStr, 0, 0); ctx.restore();
+        } else {
+            ctx.fillText(textStr, cx, cy);
+        }
+    } else {
+        let DX = cx * _dxfFactor;
+        let DY = (canvasHeight - cy) * _dxfFactor;
+        let DSize = size * _dxfFactor;
+        let Dw = w * _dxfFactor;
+
+        let cCode = (color === "#c0392b") ? 1 : 7;
+        let startX, startY;
+        
+        if(isVert) {
+            startX = DX + (DSize * 0.35); 
+            if(align === "center") startY = DY - (Dw / 2);
+            else if(align === "left") startY = DY;
+            else if(align === "right") startY = DY - Dw;
+            
+            _dxfStr += `  0\r\nTEXT\r\n  8\r\n0\r\n 62\r\n${cCode}\r\n 10\r\n${startX.toFixed(2)}\r\n 20\r\n${startY.toFixed(2)}\r\n 40\r\n${DSize.toFixed(2)}\r\n  1\r\n${textStr}\r\n 50\r\n90\r\n`;
+        } else {
+            startY = DY - (DSize * 0.35); 
+            if(align === "center") startX = DX - (Dw / 2);
+            else if(align === "left") startX = DX;
+            else if(align === "right") startX = DX - Dw;
+
+            _dxfStr += `  0\r\nTEXT\r\n  8\r\n0\r\n 62\r\n${cCode}\r\n 10\r\n${startX.toFixed(2)}\r\n 20\r\n${startY.toFixed(2)}\r\n 40\r\n${DSize.toFixed(2)}\r\n  1\r\n${textStr}\r\n 50\r\n0\r\n`;
+        }
+    }
+}
+
+function drawDim(scale, originX, originY, x1_mm, y1_mm, x2_mm, y2_mm, offset_mm, text, isVert = false) {
+    const c_x1 = originX + x1_mm * scale, c_y1 = originY - y1_mm * scale;
+    const c_x2 = originX + x2_mm * scale, c_y2 = originY - y2_mm * scale;
+    
+    const gap = 6, ext = 5, tick = 3, textOffset = 8; // キャンバス上の絶対ピクセル
+    const dir = Math.sign(offset_mm) || 1; // オフセットの方向（外側か内側か）
+
+    if(!isVert) {
+        const ay = c_y1 - offset_mm * scale;
+        const minX = Math.min(c_x1, c_x2), maxX = Math.max(c_x1, c_x2);
+        const cx = (minX + maxX) / 2;
+
+        outLine(c_x1, c_y1 - gap * dir, c_x1, ay - ext * dir, 0.4); 
+        outLine(c_x2, c_y2 - gap * dir, c_x2, ay - ext * dir, 0.4);
+        outLine(minX, ay, maxX, ay, 0.4); 
+        outLine(c_x1 - tick, ay + tick, c_x1 + tick, ay - tick, 0.8); 
+        outLine(c_x2 - tick, ay + tick, c_x2 + tick, ay - tick, 0.8);
+        outText(text, cx, ay - textOffset * dir, 12, false, "#000", "center");
+    } else {
+        const ax = c_x1 - offset_mm * scale;
+        const yBot = Math.max(c_y1, c_y2), yTop = Math.min(c_y1, c_y2);
+        const cy = (yBot + yTop) / 2;
+
+        outLine(c_x1 - gap * dir, c_y1, ax - ext * dir, c_y1, 0.4);
+        outLine(c_x2 - gap * dir, c_y2, ax - ext * dir, c_y2, 0.4);
+        outLine(ax, yBot, ax, yTop, 0.4); 
+        outLine(ax - tick, c_y1 + tick, ax + tick, c_y1 - tick, 0.8);
+        outLine(ax - tick, c_y2 + tick, ax + tick, c_y2 - tick, 0.8);
+        outText(text, ax - textOffset * dir, cy, 12, true, "#000", "center");
+    }
+}
+
+function drawFrame(w, h, v) {
+    outRect(20, 20, w - 40, h - 40, 1.0);
+    const ty = h - 65;
+    outLine(20, ty, w - 20, ty, 1.0);
+    const cols = [180, 500, 720, 780, 890, 960].map(x => x + 20);
+    for(let x of cols) outLine(x, ty, x, h - 20, 1.0);
+
+    const midY = ty + 22.5;
+    outText(v.compName, 20+90, midY, 14, false, "#000", "center");
+    outText("工事名：", 200+10, midY, 10, false, "#000", "left");
+    outText(v.pjName, 200+55, midY, 12, false, "#000", "left");
+    outText("図面名：", 520+10, midY, 10, false, "#000", "left");
+    outText(v.dwgName, 520+55, midY, 12, false, "#000", "left");
+    outText("縮尺：", 740+5, midY, 9, false, "#000", "left");
+    outText(v.scaleStr, 740+35, midY, 11, false, "#000", "left");
+    outText("日付：", 800+5, midY, 9, false, "#000", "left");
+    outText(v.dateStr, 800+35, midY, 11, false, "#000", "left");
+    outText("担当：", 910+5, midY, 9, false, "#000", "left");
+    outText(v.managerStr, 910+35, midY, 11, false, "#000", "left");
+    outText("図番：", 980+10, midY, 9, false, "#000", "left");
+    outText(v.dwgNoStr, 980+50, midY, 12, false, "#000", "left");
+}
+
+function drawSpecTable(w, v) {
+    const startX = w - 20 - 420, startY = 20, tW = 420, colW = 80;
+    const rowH = 22, headerH = 28, rows = v.specLabels.length;
+    const totalH = headerH + (rowH * rows) + 28;
+    
+    outRect(startX, startY, tW, totalH, 0.5);
+    outLine(startX, startY + headerH, startX + tW, startY + headerH, 0.5);
+    outLine(startX + colW, startY, startX + colW, startY + headerH + rowH * rows, 0.5);
+    for(let i=1; i<=rows; i++) outLine(startX, startY+headerH+i*rowH, startX+tW, startY+headerH+i*rowH, 0.5); 
+    
+    outText("名称", startX + colW/2, startY + headerH/2, 13, false, "#000", "center");
+    outText("仕上 ・ 金物", startX + colW + (tW-colW)/2, startY + headerH/2, 13, false, "#000", "center");
+    
+    for(let i=0; i<rows; i++) {
+        outText(v.specLabels[i]||"", startX + colW/2, startY + headerH + i*rowH + rowH/2, 12, false, "#000", "center");
+        outText(v.specValues[i]||"", startX + colW + 10, startY + headerH + i*rowH + rowH/2, 12, false, "#000", "left");
+    }
+    outText(v.specNote, startX + 10, startY + headerH + rows*rowH + 14, 12, false, "#c0392b", "left");
+}
+
+function generateDrawing() {
+    const canvas = document.getElementById('previewCanvas');
+    const w = canvas.width, h = canvas.height;
+
+    if(!_isDXF) {
+        ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        ctx.translate(viewOffsetX, viewOffsetY);
+        ctx.scale(viewZoom, viewZoom);
+    }
+    
+    const v = getValues();
+
+    let S_den = 20; // デフォルトは1/20
+    let match = v.scaleStr.match(/(\d+)\s*[\/:]\s*(\d+)/);
+    if(match) {
+        S_den = parseFloat(match[2]) / parseFloat(match[1]); // "1/20"なら 20
+    }
+
+    // A3の有効印刷範囲を 約 405mm x 285mm とする。
+    // キャンバスの枠内サイズは 1080 x 752 ピクセル。
+    let scale = 1080 / (405 * S_den);
+
+    if (_isDXF) {
+        _dxfFactor = 1.0 / scale; 
+    } else {
+        _dxfFactor = 1.0;
+    }
+
+    const distPlan = 1000, distSect = 600;
+    const totalW = v.W + distSect + v.D;
+    const totalH = v.H + distPlan + v.D;
+    
+    const frameCenterX = 350; // 仕様表を避けた描画エリアの中心X
+    const frameCenterY = 396; // キャンバスの中心Y
+    
+    const originX = frameCenterX - (totalW * scale) / 2;
+    // 【V109】下揃えの基準を下方へシフト（-100 -> -20）
+    const originY = frameCenterY + (totalH * scale) / 2 - 20; 
+
+    const line = (x1, y1, x2, y2, lw=0.6) => {
+        outLine(originX+x1*scale, originY-y1*scale, originX+x2*scale, originY-y2*scale, lw);
+    };
+
+    drawFrame(w, h, v);
+    drawSpecTable(w, v);
+
+    line(0,0,v.W,0,1); line(0,v.H,v.W,v.H,1); line(0,0,0,v.H,1); line(v.W,0,v.W,v.H,1);
+    line(v.TSL,0,v.TSL,v.H,0.6); line(v.W-v.TSR,0,v.W-v.TSR,v.H,0.6);
+    line(v.TSL,v.TB,v.W-v.TSR,v.TB,0.6); line(v.TSL,v.H-v.TT,v.W-v.TSR,v.H-v.TT,0.6);
+    if(v.useMid){
+        line(v.TSL, v.HM-v.TM/2, v.W-v.TSR, v.HM-v.TM/2, 0.6);
+        line(v.TSL, v.HM+v.TM/2, v.W-v.TSR, v.HM+v.TM/2, 0.6);
+    }
+
+    if(v.showHikite){
+        let hx = (v.hikiSide === "left") ? v.hikiX : v.W - v.hikiX - v.hikiW;
+        outRect(originX + hx*scale, originY - (v.hikiY + v.hikiH/2)*scale, v.hikiW*scale, v.hikiH*scale, 1.0, "#c0392b");
+        outLine(originX + hx*scale - 10, originY - v.hikiY*scale, originX + (hx+v.hikiW)*scale + 10, originY - v.hikiY*scale, 0.6, "#c0392b");
+        
+        const sideX = (v.hikiSide === "left") ? 0 : v.W;
+        const offsetDist = (v.hikiSide === "left") ? 120 : -120;
+        drawDim(scale, originX, originY, sideX, v.hikiY, sideX, 0, offsetDist, Math.round(v.hikiY), true);
+    }
+
+    const drawK = (yL, yH, nV, nH, ktv, kth) => {
+        if(yH <= yL) return;
+        const xG = (v.W - v.TSL - v.TSR) / (nV + 1);
+        let kX = [];
+        for(let i=1; i<=nV; i++){
+            let cx = v.TSL + xG*i;
+            kX.push(cx);
+            line(cx-ktv/2, yL, cx-ktv/2, yH, 0.6); 
+            line(cx+ktv/2, yL, cx+ktv/2, yH, 0.6);
+            if(i === 1 && ktv > 1) drawDim(scale, originX, originY, cx-ktv/2, yH, cx+ktv/2, yH, -40, `${ktv}`);
+        }
+        
+        if(nH > 0) {
+            const yG = (yH - yL) / (nH + 1);
+            for(let j=1; j<=nH; j++){
+                let y = yL + yG*j;
+                if(j === 1 && kth > 1) {
+                    drawDim(scale, originX, originY, v.TSL, y+kth/2, v.TSL, y-kth/2, -40, `${kth}`, true);
+                }
+                if(nV === 0) { 
+                    line(v.TSL, y-kth/2, v.W-v.TSR, y-kth/2, 0.3);
+                    line(v.TSL, y+kth/2, v.W-v.TSR, y+kth/2, 0.3);
+                } else {
+                    line(v.TSL, y-kth/2, kX[0]-ktv/2, y-kth/2, 0.3);
+                    line(v.TSL, y+kth/2, kX[0]-ktv/2, y+kth/2, 0.3);
+                    for(let k=0; k<nV-1; k++) {
+                        line(kX[k]+ktv/2, y-kth/2, kX[k+1]-ktv/2, y-kth/2, 0.3);
+                        line(kX[k]+ktv/2, y+kth/2, kX[k+1]-ktv/2, y+kth/2, 0.3);
+                    }
+                    line(kX[nV-1]+ktv/2, y-kth/2, v.W-v.TSR, y-kth/2, 0.3);
+                    line(kX[nV-1]+ktv/2, y+kth/2, v.W-v.TSR, y+kth/2, 0.3);
+                }
+            }
+        }
+    };
+    
+    if(v.useMid){
+        drawK(v.HM+v.TM/2, v.H-v.TT, v.stT, v.shT, v.ktv, v.kth);
+        drawK(v.TB, v.HM-v.TM/2, v.stB, v.shB, v.ktv, v.kth);
+    } else {
+        drawK(v.TB, v.H-v.TT, v.stT, v.shT, v.ktv, v.kth);
+    }
+
+    const offLeft = 200;
+    if(v.TB > 1) drawDim(scale, originX, originY, 0, v.TB, 0, 0, offLeft, Math.round(v.TB), true);
+    if(v.useMid) {
+        drawDim(scale, originX, originY, 0, v.HM-v.TM/2, 0, v.TB, offLeft, Math.round(v.HM-v.TM/2-v.TB), true);
+        drawDim(scale, originX, originY, 0, v.HM+v.TM/2, 0, v.HM-v.TM/2, offLeft, Math.round(v.TM), true);
+        drawDim(scale, originX, originY, 0, v.H-v.TT, 0, v.HM+v.TM/2, offLeft, Math.round(v.H-v.TT-(v.HM+v.TM/2)), true);
+    } else {
+        drawDim(scale, originX, originY, 0, v.H-v.TT, 0, v.TB, offLeft, Math.round(v.H-v.TB-v.TT), true);
+    }
+    drawDim(scale, originX, originY, 0, v.H, 0, v.H-v.TT, offLeft, Math.round(v.TT), true);
+    drawDim(scale, originX, originY, 0, v.H, 0, 0, 400, Math.round(v.H), true); 
+
+    drawDim(scale, originX, originY, 0, v.H, v.TSL, v.H, 200, v.TSL);
+    drawDim(scale, originX, originY, v.TSL, v.H, v.W-v.TSR, v.H, 200, v.W-v.TSL-v.TSR);
+    drawDim(scale, originX, originY, v.W-v.TSR, v.H, v.W, v.H, 200, v.TSR);
+    drawDim(scale, originX, originY, 0, v.H, v.W, v.H, 400, v.W);
+
+    const py = v.H + 1000;
+    line(0, py, v.W, py, 0.6); line(0, py+v.D, v.W, py+v.D, 0.6);
+    line(0, py, 0, py+v.D, 0.6); line(v.W, py, v.W, py+v.D, 0.6);
+    line(v.TSL, py, v.TSL, py+v.D, 0.6); line(v.W-v.TSR, py, v.W-v.TSR, py+v.D, 0.6);
+    drawDim(scale, originX, originY, 0, py+v.D, 0, py, -150, v.D, true);
+
+    const sx = v.W + 600;
+    line(sx, 0, sx+v.D, 0, 0.6); line(sx, v.H, sx+v.D, v.H, 0.6);
+    line(sx, 0, sx, v.H, 0.6); line(sx+v.D, 0, sx+v.D, v.H, 0.6);
+    drawDim(scale, originX, originY, sx, 0, sx+v.D, 0, -100, v.D);
+
+    if(!_isDXF) {
+        ctx.restore();
+    }
+}
+
+function drawPreview() {
+    _isDXF = false; generateDrawing();
+}
+
+function resetViewAndPrint() {
+    viewZoom = 1.0;
+    viewOffsetX = 0;
+    viewOffsetY = 0;
+    drawPreview();
+    setTimeout(() => window.print(), 200);
+}
+
+function exportDXF() {
+    _isDXF = true;
+    _dxfStr = "  0\r\nSECTION\r\n  2\r\nHEADER\r\n  9\r\n$ACADVER\r\n  1\r\nAC1009\r\n  0\r\nENDSEC\r\n  0\r\nSECTION\r\n  2\r\nENTITIES\r\n";
+    generateDrawing();
+    _dxfStr += "  0\r\nENDSEC\r\n  0\r\nEOF\r\n";
+    _isDXF = false;
+
+    const blob = new Blob([_dxfStr], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const v = getValues();
+    link.download = `${v.dwgNoStr || 'drawing'}_${v.dwgName || '建具図'}.dxf`;
+    link.click();
+}
+
+// ==========================================
+// ビューアコントロール（ズーム＆パン機能）
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById('previewCanvas');
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    canvas.addEventListener('wheel', function(e) {
+        e.preventDefault(); 
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        const worldX = (mouseX - viewOffsetX) / viewZoom;
+        const worldY = (mouseY - viewOffsetY) / viewZoom;
+
+        viewZoom *= zoomFactor;
+        viewZoom = Math.max(0.2, Math.min(viewZoom, 10)); 
+
+        viewOffsetX = mouseX - worldX * viewZoom;
+        viewOffsetY = mouseY - worldY * viewZoom;
+
+        drawPreview();
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+        if(isDragging) {
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+            viewOffsetX += dx;
+            viewOffsetY += dy;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            drawPreview();
+        }
+    });
+
+    canvas.addEventListener('dblclick', function() {
+        viewZoom = 1.0;
+        viewOffsetX = 0;
+        viewOffsetY = 0;
+        drawPreview();
+    });
+});
+</script>
+</body>
+</html>
