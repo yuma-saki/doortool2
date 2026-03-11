@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>建具作図ツール V110.0 - 決定版・仕様表修正済</title>
+    <title>建具作図ツール V111.23 - 無限Undo完全対応版</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #eef2f3; padding: 20px; display: flex; flex-direction: column; align-items: center; margin: 0; }
         .container { width: 1650px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: grid; grid-template-columns: 420px 1fr; gap: 20px; }
@@ -18,8 +18,9 @@
         .btn-scale:hover { background: #e67e22; color: #fff; }
 
         .spec-row { display: grid; grid-template-columns: 80px 1fr 30px; gap: 5px; margin-bottom: 4px; }
-        .text-row { display: grid; grid-template-columns: 1fr 45px 45px 25px 45px 45px 25px; gap: 3px; margin-bottom: 4px; align-items: center; }
-        
+        .text-row { display: grid; grid-template-columns: 1fr 42px 42px 35px 25px 42px 42px 25px; gap: 3px; margin-bottom: 4px; align-items: center; }
+        .op-row { display: grid; grid-template-columns: 80px 42px 42px 42px 42px 42px 25px; gap: 3px; margin-bottom: 4px; align-items: center; }
+
         .btn-add { background: #27ae60; padding: 6px; font-size: 11px; margin-top: 5px; border: none; border-radius: 4px; color: white; cursor: pointer; width: 120px; }
         .btn-del { background: #e74c3c; padding: 2px 5px; font-size: 10px; border: none; border-radius: 4px; color: white; height: 24px; cursor: pointer; }
         
@@ -41,23 +42,24 @@
         .slider-v input { writing-mode: bt-lr; appearance: slider-vertical; width: 8px; height: 100%; }
         .slider-h input { width: 100%; height: 8px; }
 
-        .hint-badge { position: absolute; bottom: 50px; right: 50px; background: rgba(44, 62, 80, 0.85); color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; pointer-events: none; z-index: 10; }
+        .hint-badge { position: absolute; bottom: 50px; right: 50px; background: rgba(230, 126, 34, 0.9); color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; pointer-events: none; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 
+        /* 印刷余白を極限まで小さく */
         @media print {
-            @page { size: landscape; margin: 0; }
-            body { background: white; padding: 0; margin: 0; overflow: hidden; }
+            @page { size: A4 landscape; margin: 0; }
+            body, html { width: 100%; height: 100%; background: white; padding: 0; margin: 0; overflow: hidden; }
             .controls, h1, .hint-badge, .slider-v, .slider-h { display: none !important; }
-            .container { width: 100%; height: 100vh; display: block; padding: 0; margin: 0; }
-            .preview-area { background: none; border: none; display: block; width: 100%; height: 100vh; }
-            .canvas-wrapper { background: none; display: flex; justify-content: center; width: 100%; height: 100%; }
-            canvas { width: 100%; height: 100%; object-fit: contain; box-shadow: none; border: none; }
+            .container { width: 100%; height: 100%; display: block; padding: 0; margin: 0; border-radius: 0; box-shadow: none; border: none; }
+            .preview-area { background: none; border: none; display: block; width: 100%; height: 100%; padding: 0; margin: 0; }
+            .canvas-wrapper { background: none; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+            canvas { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: none; border: none; }
         }
     </style>
 </head>
 <body onload="initApp()">
 
 <div class="container">
-    <h1>建具作図ツール V110.0 (プロ仕様決定版)</h1>
+    <h1>建具作図ツール V111.23 (無限Undo完全対応版)</h1>
     <div class="controls">
         
         <div class="group" style="background: #e8f6f3; border-left-color: #1abc9c;">
@@ -86,7 +88,7 @@
                         <button class="btn-scale" onclick="setScale('1/30')">1/30</button>
                     </div>
                 </div>
-                <div><label>日付</label><input type="text" id="dateStr" value="2026/03/11" oninput="drawPreview()"></div>
+                <div><label>日付</label><input type="text" id="dateStr" value="2026/03/12" oninput="drawPreview()"></div>
                 <div><label>担当</label><input type="text" id="managerStr" value="設計部" oninput="drawPreview()"></div>
                 <div><label>図番</label><input type="text" id="dwgNoStr" value="A-01" oninput="drawPreview()"></div>
             </div>
@@ -170,9 +172,26 @@
         </div>
 
         <div class="group">
-            <div class="group-title">6. 自由テキスト配置 (ドラッグ移動)</div>
+            <div class="group-title">6. 明かり取り・ガラリ</div>
+            <div style="font-size:10px; color:#555; margin-bottom:5px;">X, Y, W(幅), H(高), M(見付)</div>
+            <div id="openingContainer"></div>
+            <button class="btn-add" onclick="addOpeningRow()">＋ 開口部追加</button>
+        </div>
+
+        <div class="group">
+            <div class="group-title">7. 自由テキスト配置</div>
+            <div style="font-size:10px; color:#555; margin-bottom:5px;">内容, X, Y, 角度, 矢, 矢X, 矢Y</div>
             <div id="textExtraContainer"></div>
             <button class="btn-add" onclick="addTextRow()">＋ テキスト追加</button>
+        </div>
+
+        <div class="group" style="background: #f8d7da; border-left-color: #e74c3c;">
+            <div class="group-title" style="color: #c0392b;">8. 独立消しゴム＆編集ツール</div>
+            <div class="row-btns">
+                <button id="eraserBtn" class="btn-main btn-gray" style="background:#95a5a6; padding:10px; font-size:12px;" onclick="toggleEraser()">🧹 消しゴム：OFF</button>
+                <button class="btn-main" style="background:#bdc3c7; color:#333; padding:10px; font-size:12px;" onclick="undoEraser()">↩ 1つ戻す (無限Undo)</button>
+            </div>
+            <div style="font-size:10px; color:#c0392b; margin-top:5px; line-height:1.3;">ONの状態でキャンバス上の「文字」「数字」「線」をクリックすると独立して消せます。</div>
         </div>
 
         <div class="action-buttons">
@@ -191,17 +210,85 @@
         <div class="slider-h">
             <input type="range" id="slideX" min="-1000" max="1000" value="0" step="10" oninput="syncInput('X')">
         </div>
-        <div class="hint-badge">文字・矢印をドラッグ移動 ｜ 余白ドラッグ：画面移動</div>
+        <div class="hint-badge" id="hintBadge">💡 ドラッグ移動＆独立消しゴム＆文字回転 搭載！</div>
     </div>
 </div>
 
 <script>
-// --- プロジェクト管理エンジン ---
+// --- グローバル変数 ---
+window.customDimOffsets = window.customDimOffsets || {};
+window.hiddenDimTexts = window.hiddenDimTexts || [];
+window.hiddenDimLines = window.hiddenDimLines || [];
+window.eraserHistory = window.eraserHistory || []; // Undo履歴用スタック
+window.clickableDims = []; 
+let isEraserMode = false;
+
+// --- テキスト回転ボタン処理 ---
+function rotateText(btn) {
+    let angle = parseInt(btn.dataset.angle) || 0;
+    angle = (angle + 90) % 360; 
+    btn.dataset.angle = angle;
+    btn.innerText = angle + '°';
+    drawPreview();
+}
+
+// --- 消しゴム機能の制御 ---
+function toggleEraser() {
+    isEraserMode = !isEraserMode;
+    const btn = document.getElementById('eraserBtn');
+    const badge = document.getElementById('hintBadge');
+    if (isEraserMode) {
+        btn.innerText = "🧹 消しゴム：ON (個別消去)";
+        btn.style.background = "#e74c3c";
+        btn.style.color = "white";
+        document.getElementById('previewCanvas').style.cursor = "crosshair";
+        badge.innerText = "⚠️ 消しゴムON：文字・数字・線を個別に消せます";
+        badge.style.background = "rgba(231, 76, 60, 0.9)";
+    } else {
+        btn.innerText = "🧹 消しゴム：OFF";
+        btn.style.background = "#95a5a6";
+        btn.style.color = "white";
+        document.getElementById('previewCanvas').style.cursor = "grab";
+        badge.innerText = "💡 ドラッグ移動＆独立消しゴム＆文字回転 搭載！";
+        badge.style.background = "rgba(230, 126, 34, 0.9)";
+    }
+}
+
+// --- 無限Undo機能 (エラー回避強化版) ---
+function undoEraser() {
+    if (!window.eraserHistory || window.eraserHistory.length === 0) return;
+    const last = window.eraserHistory.pop(); 
+    
+    if (last.type === 'dimText') {
+        window.hiddenDimTexts = window.hiddenDimTexts.filter(id => id !== last.id);
+    } else if (last.type === 'dimLine') {
+        window.hiddenDimLines = window.hiddenDimLines.filter(id => id !== last.id);
+    } else if (last.type === 'domNode') {
+        try {
+            // エラー回避：隣にあった要素がまだ親要素内に存在するかチェック
+            if (last.nextSibling && last.nextSibling.parentNode === last.parent) {
+                last.parent.insertBefore(last.el, last.nextSibling);
+            } else {
+                last.parent.appendChild(last.el); // 存在しない場合は一番下に追加して確実に復元
+            }
+        } catch(e) {
+            last.parent.appendChild(last.el); // 万が一エラーが起きても確実に末尾に復元
+        }
+    }
+    drawPreview();
+}
+
+// --- プロジェクト管理 ---
+const STORAGE_KEY = 'tategu_final_perfect_data';
+
 function initApp() {
     ctx = document.getElementById('previewCanvas').getContext('2d');
-    const saved = localStorage.getItem('tategu_ultimate_data');
-    if (saved) applyProjectData(JSON.parse(saved));
-    else resetToDefault();
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        try { applyProjectData(JSON.parse(saved)); } catch(e) { resetToDefault(); }
+    } else {
+        resetToDefault();
+    }
 }
 
 function getProjectData() {
@@ -216,7 +303,11 @@ function getProjectData() {
             hikiY: v.hikiY, hikiSide: v.hikiSide, hikiX: v.hikiX, specNote: v.specNote
         },
         specs: v.specLabels.map((l, i) => ({ label: l, value: v.specValues[i] })),
-        extraTexts: v.extraTexts.map(et => ({ text: et.text, x: et.x, y: et.y, useArrow: et.useArrow, ax: et.ax, ay: et.ay }))
+        extraTexts: v.extraTexts.map(et => ({ text: et.text, x: et.x, y: et.y, angle: et.angle, useArrow: et.useArrow, ax: et.ax, ay: et.ay })),
+        openings: v.openings.map(op => ({ type: op.type, x: op.x, y: op.y, w: op.w, h: op.h, m: op.m })),
+        customDimOffsets: window.customDimOffsets,
+        hiddenDimTexts: window.hiddenDimTexts,
+        hiddenDimLines: window.hiddenDimLines
     };
 }
 
@@ -232,9 +323,22 @@ function applyProjectData(data) {
     document.getElementById('slideX').value = data.inputs.offX;
     document.getElementById('slideY').value = data.inputs.offY;
     document.getElementById('specContainer').innerHTML = "";
-    data.specs.forEach(s => addRow(s.label, s.value));
+    if(data.specs) data.specs.forEach(s => addRow(s.label, s.value));
+    
     document.getElementById('textExtraContainer').innerHTML = "";
-    data.extraTexts.forEach(et => addTextRow(et.text, et.x, et.y, et.useArrow, et.ax, et.ay));
+    if(data.extraTexts) {
+        data.extraTexts.forEach(et => {
+            let ang = et.angle !== undefined ? et.angle : (et.isVert ? 90 : 0);
+            addTextRow(et.text, et.x, et.y, ang, et.useArrow, et.ax, et.ay);
+        });
+    }
+    document.getElementById('openingContainer').innerHTML = "";
+    if(data.openings) data.openings.forEach(op => addOpeningRow(op.type, op.x, op.y, op.w, op.h, op.m));
+    
+    window.customDimOffsets = data.customDimOffsets || {}; 
+    window.hiddenDimTexts = data.hiddenDimTexts || data.hiddenDims || []; 
+    window.hiddenDimLines = data.hiddenDimLines || data.hiddenDims || []; 
+    window.eraserHistory = []; 
     drawPreview();
 }
 
@@ -257,6 +361,10 @@ function loadProjectFile(input) {
 }
 
 function resetToDefault() {
+    window.customDimOffsets = {}; 
+    window.hiddenDimTexts = [];
+    window.hiddenDimLines = [];
+    window.eraserHistory = [];
     applyProjectData({
         inputs: {
             compName: "(株) 崎原工房", pjName: "〇〇邸 新築工事", dwgName: "建具姿図・詳細図", scaleStr: "1/20",
@@ -266,11 +374,13 @@ function resetToDefault() {
             ktv: 15, kth: 15, showHikite: true, hikiH: 100, hikiW: 50, hikiY: 900, hikiSide: "right", hikiX: 30, specNote: "＊現場寸法確認の上製作"
         },
         specs: [{ label: "本体", value: "人工タモ塗装品" }, { label: "金物", value: "長角引手" }],
-        extraTexts: []
+        extraTexts: [],
+        openings: [],
+        customDimOffsets: {}
     });
 }
 
-// --- 描画エンジン・コア ---
+// --- UI操作 ---
 function setScale(val) { document.getElementById('scaleStr').value = val; drawPreview(); }
 function syncSlider(axis) { document.getElementById('slide' + axis).value = document.getElementById('off' + axis).value; drawPreview(); }
 function syncInput(axis) { document.getElementById('off' + axis).value = document.getElementById('slide' + axis).value; drawPreview(); }
@@ -281,17 +391,40 @@ function addRow(l="", v="") {
     document.getElementById('specContainer').appendChild(div);
     drawPreview();
 }
-function addTextRow(txt="", x=0, y=0, useA=false, ax=100, ay=100) {
+
+function addTextRow(txt="", x=0, y=0, angle=0, useA=false, ax=100, ay=100) {
+    if (angle === true) angle = 90; 
+    if (angle === false) angle = 0;
+    
     const div = document.createElement('div'); div.className = 'text-row';
     div.innerHTML = `
         <input type="text" class="extra-txt" value="${txt}" placeholder="内容" oninput="drawPreview()">
-        <input type="number" class="extra-x" value="${x}" oninput="drawPreview()">
-        <input type="number" class="extra-y" value="${y}" oninput="drawPreview()">
-        <input type="checkbox" class="extra-use-arrow" ${useA?'checked':''} onchange="drawPreview()">
-        <input type="number" class="extra-ax" value="${ax}" oninput="drawPreview()">
-        <input type="number" class="extra-ay" value="${ay}" oninput="drawPreview()">
+        <input type="number" class="extra-x" value="${x}" title="X座標" placeholder="X" oninput="drawPreview()">
+        <input type="number" class="extra-y" value="${y}" title="Y座標" placeholder="Y" oninput="drawPreview()">
+        <button type="button" class="extra-rot" style="padding:4px 0; font-size:10px; background:#ecf0f1; border:1px solid #bdc3c7; border-radius:4px; cursor:pointer;" data-angle="${angle}" onclick="rotateText(this)">${angle}°</button>
+        <input type="checkbox" class="extra-use-arrow" title="矢印" ${useA?'checked':''} onchange="drawPreview()">
+        <input type="number" class="extra-ax" value="${ax}" title="矢印先X" placeholder="矢X" oninput="drawPreview()">
+        <input type="number" class="extra-ay" value="${ay}" title="矢印先Y" placeholder="矢Y" oninput="drawPreview()">
         <button class="btn-del" onclick="removeRow(this)">×</button>`;
     document.getElementById('textExtraContainer').appendChild(div);
+    drawPreview();
+}
+
+function addOpeningRow(type="rect", x=100, y=1500, w=100, h=100, m=30) {
+    const div = document.createElement('div'); div.className = 'op-row';
+    div.innerHTML = `
+        <select class="op-type" onchange="drawPreview()">
+            <option value="rect" ${type==='rect'?'selected':''}>四角ガラス</option>
+            <option value="circle" ${type==='circle'?'selected':''}>丸ガラス</option>
+            <option value="louver" ${type==='louver'?'selected':''}>ガラリ</option>
+        </select>
+        <input type="number" class="op-x" value="${x}" title="X座標" placeholder="X" oninput="drawPreview()">
+        <input type="number" class="op-y" value="${y}" title="Y座標" placeholder="Y" oninput="drawPreview()">
+        <input type="number" class="op-w" value="${w}" title="幅" placeholder="W" oninput="drawPreview()">
+        <input type="number" class="op-h" value="${h}" title="高さ" placeholder="H" oninput="drawPreview()">
+        <input type="number" class="op-m" value="${m}" title="枠見付" placeholder="見付" oninput="drawPreview()">
+        <button class="btn-del" onclick="removeRow(this)">×</button>`;
+    document.getElementById('openingContainer').appendChild(div);
     drawPreview();
 }
 function removeRow(btn) { btn.parentElement.remove(); drawPreview(); }
@@ -316,121 +449,182 @@ function getValues() {
         specValues: Array.from(document.querySelectorAll('.spec-value')).map(el => el.value),
         specNote: document.getElementById('specNote').value,
         extraTexts: Array.from(document.querySelectorAll('.text-row')).map(row => ({
-            text: row.querySelector('.extra-txt').value,
-            x: parseFloat(row.querySelector('.extra-x').value) || 0,
+            rowEl: row,
+            text: row.querySelector('.extra-txt').value, 
+            x: parseFloat(row.querySelector('.extra-x').value) || 0, 
             y: parseFloat(row.querySelector('.extra-y').value) || 0,
-            useArrow: row.querySelector('.extra-use-arrow').checked,
-            ax: parseFloat(row.querySelector('.extra-ax').value) || 0,
+            angle: parseInt(row.querySelector('.extra-rot').dataset.angle) || 0,
+            useArrow: row.querySelector('.extra-use-arrow').checked, 
+            ax: parseFloat(row.querySelector('.extra-ax').value) || 0, 
             ay: parseFloat(row.querySelector('.extra-ay').value) || 0,
-            elX: row.querySelector('.extra-x'), elY: row.querySelector('.extra-y'),
-            elAX: row.querySelector('.extra-ax'), elAY: row.querySelector('.extra-ay')
+            elX: row.querySelector('.extra-x'), elY: row.querySelector('.extra-y'), elAX: row.querySelector('.extra-ax'), elAY: row.querySelector('.extra-ay')
+        })),
+        openings: Array.from(document.querySelectorAll('.op-row')).map(row => ({
+            rowEl: row,
+            type: row.querySelector('.op-type').value, 
+            x: parseFloat(row.querySelector('.op-x').value) || 0, y: parseFloat(row.querySelector('.op-y').value) || 0,
+            w: parseFloat(row.querySelector('.op-w').value) || 0, h: parseFloat(row.querySelector('.op-h').value) || 0,
+            m: parseFloat(row.querySelector('.op-m').value) || 0,
+            elX: row.querySelector('.op-x'), elY: row.querySelector('.op-y'), elW: row.querySelector('.op-w'), elH: row.querySelector('.op-h')
         }))
     };
 }
 
+// --- 描画エンジン ---
 let ctx = null; let _isDXF = false; let _dxfStr = ""; let _dxfFactor = 1.0; const canvasHeight = 792;
 let viewZoom = 1.0; let viewOffsetX = 0; let viewOffsetY = 0;
 let lastOriginX = 0, lastOriginY = 0, lastScale = 1;
 
 function outLine(x1, y1, x2, y2, lw=0.6, color="#000") {
     if(!_isDXF) {
-        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw;
-        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     } else {
-        let X1 = x1 * _dxfFactor; let Y1 = (canvasHeight - y1) * _dxfFactor;
-        let X2 = x2 * _dxfFactor; let Y2 = (canvasHeight - y2) * _dxfFactor;
-        _dxfStr += `  0\r\nLINE\r\n  8\r\n0\r\n 10\r\n${X1.toFixed(2)}\r\n 20\r\n${Y1.toFixed(2)}\r\n 11\r\n${X2.toFixed(2)}\r\n 21\r\n${Y2.toFixed(2)}\r\n`;
+        _dxfStr += `  0\r\nLINE\r\n  8\r\n0\r\n 10\r\n${(x1*_dxfFactor).toFixed(2)}\r\n 20\r\n${((canvasHeight-y1)*_dxfFactor).toFixed(2)}\r\n 11\r\n${(x2*_dxfFactor).toFixed(2)}\r\n 21\r\n${((canvasHeight-y2)*_dxfFactor).toFixed(2)}\r\n`;
     }
 }
 function outRect(x, y, w, h, lw=1.0, color="#000") {
-    outLine(x, y, x+w, y, lw, color); outLine(x+w, y, x+w, y+h, lw, color);
-    outLine(x+w, y+h, x, y+h, lw, color); outLine(x, y+h, x, y, lw, color);
+    outLine(x, y, x+w, y, lw, color); outLine(x+w, y, x+w, y+h, lw, color); outLine(x+w, y+h, x, y+h, lw, color); outLine(x, y+h, x, y, lw, color);
 }
-function outText(txt, cx, cy, size, isVert=false, color="#000", align="center") {
+function outCircle(cx, cy, r, lw=1.0, color="#000", isFill=false) {
+    if(!_isDXF) {
+        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.arc(cx, cy, r, 0, Math.PI * 2); 
+        if(isFill) { ctx.fillStyle = color; ctx.fill(); } else { ctx.stroke(); }
+    } else {
+        _dxfStr += `  0\r\nCIRCLE\r\n  8\r\n0\r\n 10\r\n${(cx*_dxfFactor).toFixed(2)}\r\n 20\r\n${((canvasHeight-cy)*_dxfFactor).toFixed(2)}\r\n 40\r\n${(r*_dxfFactor).toFixed(2)}\r\n`;
+    }
+}
+function outText(txt, cx, cy, size, angle=0, color="#000", align="center") {
+    let rot = (typeof angle === 'boolean') ? (angle ? 90 : 0) : angle;
+    
     if(!_isDXF) {
         ctx.fillStyle = color; ctx.font = `bold ${size}px sans-serif`; ctx.textAlign = align; ctx.textBaseline = "middle";
-        if(isVert) { ctx.save(); ctx.translate(cx, cy); ctx.rotate(-Math.PI/2); ctx.fillText(txt, 0, 0); ctx.restore(); }
+        if(rot !== 0) { ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot * Math.PI / 180); ctx.fillText(txt, 0, 0); ctx.restore(); }
         else ctx.fillText(txt, cx, cy);
     } else {
-        let DX = cx * _dxfFactor; let DY = (canvasHeight - cy) * _dxfFactor;
-        _dxfStr += `  0\r\nTEXT\r\n  8\r\n0\r\n 10\r\n${DX.toFixed(2)}\r\n 20\r\n${DY.toFixed(2)}\r\n 40\r\n${(size*_dxfFactor).toFixed(2)}\r\n  1\r\n${txt}\r\n 50\r\n${isVert?90:0}\r\n`;
+        const dxfX = (cx * _dxfFactor).toFixed(2);
+        const dxfY = ((canvasHeight - cy) * _dxfFactor).toFixed(2);
+        const dxfS = (size * _dxfFactor).toFixed(2);
+        let alignCode = (align === "left") ? 0 : (align === "right" ? 2 : 1);
+        let dxfRot = (360 - rot) % 360; 
+        _dxfStr += `  0\r\nTEXT\r\n  8\r\n0\r\n 10\r\n${dxfX}\r\n 20\r\n${dxfY}\r\n 40\r\n${dxfS}\r\n  1\r\n${txt}\r\n 50\r\n${dxfRot}\r\n 72\r\n${alignCode}\r\n 11\r\n${dxfX}\r\n 21\r\n${dxfY}\r\n 73\r\n2\r\n`;
     }
 }
 
-function drawDim(scale, originX, originY, x1_mm, y1_mm, x2_mm, y2_mm, offset_mm, text, isVert = false) {
-    const c_x1 = originX + x1_mm * scale, c_y1 = originY - y1_mm * scale;
-    const c_x2 = originX + x2_mm * scale, c_y2 = originY - y2_mm * scale;
-    const gap = 6, ext = 5, tick = 3, textOffset = 8; const dir = Math.sign(offset_mm) || 1;
+// 共通：丸天寸法線描画 (独立消しゴム対応)
+function drawDim(scale, originX, originY, x1_mm, y1_mm, x2_mm, y2_mm, offset_mm, text, isVert = false, dimId = null) {
+    const hideText = dimId && window.hiddenDimTexts && window.hiddenDimTexts.includes(dimId);
+    const hideLine = dimId && window.hiddenDimLines && window.hiddenDimLines.includes(dimId);
+    
+    if (hideText && hideLine) return; 
+
+    let custDx = 0, custDy = 0;
+    if (dimId && window.customDimOffsets[dimId]) {
+        custDx = window.customDimOffsets[dimId].x;
+        custDy = window.customDimOffsets[dimId].y;
+    }
+
+    const orig_x1 = originX + x1_mm * scale;
+    const orig_y1 = originY - y1_mm * scale;
+    const orig_x2 = originX + x2_mm * scale;
+    const orig_y2 = originY - y2_mm * scale;
+
+    const gap = 6, ext = 5; const dotR = 1.25;
+    const textOffset = 10; const dir = Math.sign(offset_mm) || 1;
+
     if(!isVert) {
-        const ay = c_y1 - offset_mm * scale; const minX = Math.min(c_x1, c_x2), maxX = Math.max(c_x1, c_x2);
-        outLine(c_x1, c_y1 - gap * dir, c_x1, ay - ext * dir, 0.4); outLine(c_x2, c_y2 - gap * dir, c_x2, ay - ext * dir, 0.4);
-        outLine(minX, ay, maxX, ay, 0.4); outLine(c_x1 - tick, ay + tick, c_x1 + tick, ay - tick, 0.8); outLine(c_x2 - tick, ay + tick, c_x2 + tick, ay - tick, 0.8);
-        outText(text, (minX + maxX) / 2, ay - textOffset * dir, 12, false, "#000", "center");
+        custDx = 0; 
+        const ay = orig_y1 - offset_mm * scale + custDy; 
+        const minX = Math.min(orig_x1, orig_x2), maxX = Math.max(orig_x1, orig_x2);
+        
+        if (!hideLine) {
+            outLine(orig_x1, orig_y1 - gap * dir, orig_x1, ay - ext * dir, 0.4); 
+            outLine(orig_x2, orig_y2 - gap * dir, orig_x2, ay - ext * dir, 0.4);
+            outLine(minX, ay, maxX, ay, 0.4); 
+            outCircle(orig_x1, ay, dotR, 1, "#000", true); outCircle(orig_x2, ay, dotR, 1, "#000", true);
+            
+            if(!_isDXF && dimId) window.clickableDims.push({ id: dimId, type: 'line', isVert: false, x1: minX, x2: maxX, y: ay });
+        }
+        if (!hideText) {
+            outText(text, (minX + maxX) / 2, ay - textOffset * dir, 12, 0, "#000", "center");
+            if(!_isDXF && dimId) window.clickableDims.push({ id: dimId, type: 'text', cx: (minX + maxX) / 2, cy: ay - textOffset * dir, isVert: false });
+        }
     } else {
-        const ax = c_x1 - offset_mm * scale; const yBot = Math.max(c_y1, c_y2), yTop = Math.min(c_y1, c_y2);
-        outLine(c_x1 - gap * dir, c_y1, ax - ext * dir, c_y1, 0.4); outLine(c_x2 - gap * dir, c_y2, ax - ext * dir, c_y2, 0.4);
-        outLine(ax, yBot, ax, yTop, 0.4); outLine(ax - tick, c_y1 + tick, ax + tick, c_y1 - tick, 0.8); outLine(ax - tick, c_y2 + tick, ax + tick, c_y2 - tick, 0.8);
-        outText(text, ax - textOffset * dir, (yBot + yTop) / 2, 12, true, "#000", "center");
+        custDy = 0; 
+        const ax = orig_x1 - offset_mm * scale + custDx; 
+        const yBot = Math.max(orig_y1, orig_y2), yTop = Math.min(orig_y1, orig_y2);
+        
+        if (!hideLine) {
+            outLine(orig_x1 - gap * dir, orig_y1, ax - ext * dir, orig_y1, 0.4); 
+            outLine(orig_x2 - gap * dir, orig_y2, ax - ext * dir, orig_y2, 0.4);
+            outLine(ax, yBot, ax, yTop, 0.4); 
+            outCircle(ax, orig_y1, dotR, 1, "#000", true); outCircle(ax, orig_y2, dotR, 1, "#000", true);
+            
+            if(!_isDXF && dimId) window.clickableDims.push({ id: dimId, type: 'line', isVert: true, x: ax, y1: yTop, y2: yBot });
+        }
+        if (!hideText) {
+            outText(text, ax - textOffset * dir, (yBot + yTop) / 2, 12, 90, "#000", "center");
+            if(!_isDXF && dimId) window.clickableDims.push({ id: dimId, type: 'text', cx: ax - textOffset * dir, cy: (yBot + yTop) / 2, isVert: true });
+        }
     }
 }
 
 function generateDrawing() {
+    window.clickableDims = []; 
     const canvas = document.getElementById('previewCanvas'); const w = canvas.width, h = canvas.height;
-    if(!_isDXF) {
-        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h);
-        ctx.translate(viewOffsetX, viewOffsetY); ctx.scale(viewZoom, viewZoom);
-    }
+    if(!_isDXF) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h); ctx.translate(viewOffsetX, viewOffsetY); ctx.scale(viewZoom, viewZoom); }
     const v = getValues();
-    if(!_isDXF) localStorage.setItem('tategu_ultimate_data', JSON.stringify(getProjectData()));
+    if(!_isDXF) localStorage.setItem(STORAGE_KEY, JSON.stringify(getProjectData()));
 
     let S_den = 20; let match = v.scaleStr.match(/(\d+)\s*[\/:]\s*(\d+)/); if(match) S_den = parseFloat(match[2]) / parseFloat(match[1]);
-    let scale = 1080 / (405 * S_den); _dxfFactor = _isDXF ? 1.0 / scale : 1.0; lastScale = scale;
+    let scale = 1080 / (405 * S_den); 
+    _dxfFactor = _isDXF ? 0.375 : 1.0; 
+    lastScale = scale;
+    
     const fCX = 350 + (v.offX * scale), fCY = 396 + (v.offY * scale);
     const oX = fCX - ((v.W + 630 + v.D) * scale) / 2, oY = fCY + ((v.H + 1030 + v.D) * scale) / 2 - 20; 
     lastOriginX = oX; lastOriginY = oY;
 
     const line = (x1, y1, x2, y2, lw=0.6) => { outLine(oX+x1*scale, oY-y1*scale, oX+x2*scale, oY-y2*scale, lw); };
 
-    // --- 図面枠・表題欄 ---
     outRect(20, 20, w - 40, h - 40, 1.0); const ty = h - 65; outLine(20, ty, w - 20, ty, 1.0);
-    const cols = [180, 500, 720, 780, 890, 960].map(x => x + 20);
-    for(let x of cols) outLine(x, ty, x, h - 20, 1.0);
-    const midY = ty + 22.5;
-    outText(v.compName, 20+90, midY, 14); outText("工事名：", 200+10, midY, 10, false, "#000", "left"); outText(v.pjName, 200+55, midY, 12, false, "#000", "left");
-    outText("図面名：", 520+10, midY, 10, false, "#000", "left"); outText(v.dwgName, 520+55, midY, 12, false, "#000", "left");
-    outText("縮尺：", 740+5, midY, 9, false, "#000", "left"); outText(v.scaleStr, 740+35, midY, 11, false, "#000", "left");
-    outText("日付：", 800+5, midY, 9, false, "#000", "left"); outText(v.dateStr, 800+35, midY, 11, false, "#000", "left");
-    outText("担当：", 910+5, midY, 9, false, "#000", "left"); outText(v.managerStr, 910+35, midY, 11, false, "#000", "left");
-    outText("図番：", 980+10, midY, 9, false, "#000", "left"); outText(v.dwgNoStr, 980+50, midY, 12, false, "#000", "left");
+    outLine(240, ty, 240, h - 20, 1.0); outLine(560, ty, 560, h - 20, 1.0); outLine(760, ty, 760, h - 20, 1.0);
+    outLine(820, ty, 820, h - 20, 1.0); outLine(930, ty, 930, h - 20, 1.0); outLine(1015, ty, 1015, h - 20, 1.0); 
 
-    // --- 仕様表 (修正：罫線の復活) ---
-    const sX = w - 440, sY = 20, tW = 420, colW = 80, headerH = 28, rowH = 22;
-    const specRows = v.specLabels.length;
-    const totalSpecH = headerH + (specRows * rowH) + 28;
-    outRect(sX, sY, tW, totalSpecH, 0.5); // 外枠
-    outLine(sX, sY + headerH, sX + tW, sY + headerH, 0.5); // ヘッダー区切り横線
-    outLine(sX + colW, sY, sX + colW, sY + headerH + (specRows * rowH), 0.5); // 名称と仕上の仕切り縦線
-    for(let i=1; i<=specRows; i++) {
-        outLine(sX, sY + headerH + i*rowH, sX + tW, sY + headerH + i*rowH, 0.5); // 行ごとの横線
-    }
-    outText("名称", sX + colW/2, sY + headerH/2, 13);
-    outText("仕上 ・ 金物", sX + colW + (tW-colW)/2, sY + headerH/2, 13);
-    v.specLabels.forEach((l, i) => {
-        outText(l, sX + colW/2, sY + headerH + i*rowH + rowH/2, 12);
-        outText(v.specValues[i], sX + colW + 10, sY + headerH + i*rowH + rowH/2, 12, false, "#000", "left");
-    });
-    outText(v.specNote, sX + 10, sY + headerH + specRows*rowH + 14, 12, false, "#c0392b", "left");
-
-    // --- 姿図 ---
+    const midY = ty + 22.5; outText(v.compName, 20+110, midY, 14); outText(v.pjName, 255, midY, 12, 0, "#000", "left"); outText(v.dwgName, 575, midY, 12, 0, "#000", "left");
+    outText(v.scaleStr, 790, midY, 11); outText(v.dateStr, 835, midY, 11, 0, "#000", "left"); outText(v.managerStr, 972, midY, 11); outText(v.dwgNoStr, 1050, midY, 12);
+    
     line(0,0,v.W,0,1); line(0,v.H,v.W,v.H,1); line(0,0,0,v.H,1); line(v.W,0,v.W,v.H,1);
     line(v.TSL,0,v.TSL,v.H,0.6); line(v.W-v.TSR,0,v.W-v.TSR,v.H,0.6);
     line(v.TSL,v.TB,v.W-v.TSR,v.TB,0.6); line(v.TSL,v.H-v.TT,v.W-v.TSR,v.H-v.TT,0.6);
     if(v.useMid){ line(v.TSL, v.HM-v.TM/2, v.W-v.TSR, v.HM-v.TM/2, 0.6); line(v.TSL, v.HM+v.TM/2, v.W-v.TSR, v.HM+v.TM/2, 0.6); }
 
     const drawK = (yL, yH, nV, nH, ktv, kth) => {
-        if(yH <= yL) return; const xG = (v.W - v.TSL - v.TSR) / (nV + 1); let kX = [];
-        for(let i=1; i<=nV; i++){ let cx = v.TSL + xG*i; kX.push(cx); line(cx-ktv/2, yL, cx-ktv/2, yH, 0.6); line(cx+ktv/2, yL, cx+ktv/2, yH, 0.6); }
-        if(nH > 0) { const yG = (yH - yL) / (nH + 1); for(let j=1; j<=nH; j++){ let y = yL+yG*j; line(v.TSL, y-kth/2, v.W-v.TSR, y-kth/2, 0.3); line(v.TSL, y+kth/2, v.W-v.TSR, y+kth/2, 0.3); } }
+        if(yH <= yL) return;
+        const xG = (v.W - v.TSL - v.TSR) / (nV + 1);
+        const yG = (yH - yL) / (nH + 1);
+
+        for(let i=1; i<=nV; i++){ 
+            let cx = v.TSL + xG*i; 
+            line(cx-ktv/2, yL, cx-ktv/2, yH, 0.6); 
+            line(cx+ktv/2, yL, cx+ktv/2, yH, 0.6); 
+            if(i==1) outText(Math.round(ktv).toString(), oX + cx*scale, oY - (yH - 30)*scale, 11, 0, "#000");
+        }
+
+        if(nH > 0) { 
+            for(let j=1; j<=nH; j++){ 
+                let y = yL+yG*j; 
+                let startX = v.TSL;
+                for(let i=1; i<=nV; i++) {
+                    let cx = v.TSL + xG*i;
+                    line(startX, y-kth/2, cx-ktv/2, y-kth/2, 0.3); 
+                    line(startX, y+kth/2, cx-ktv/2, y+kth/2, 0.3);
+                    startX = cx+ktv/2;
+                }
+                line(startX, y-kth/2, v.W-v.TSR, y-kth/2, 0.3);
+                line(startX, y+kth/2, v.W-v.TSR, y+kth/2, 0.3);
+                if(j==1) outText(Math.round(kth).toString(), oX + (v.TSL + 25)*scale, oY - y*scale, 11, 90, "#000"); 
+            } 
+        }
     };
     if(v.useMid){ drawK(v.HM+v.TM/2, v.H-v.TT, v.stT, v.shT, v.ktv, v.kth); drawK(v.TB, v.HM-v.TM/2, v.stB, v.shB, v.ktv, v.kth); }
     else drawK(v.TB, v.H-v.TT, v.stT, v.shT, v.ktv, v.kth);
@@ -438,35 +632,107 @@ function generateDrawing() {
     if(v.showHikite){
         let hx = (v.hikiSide === "left") ? v.hikiX : v.W - v.hikiX - v.hikiW;
         outRect(oX + hx*scale, oY - (v.hikiY + v.hikiH/2)*scale, v.hikiW*scale, v.hikiH*scale, 1.0, "#c0392b");
+        drawDim(scale, oX, oY, hx, v.hikiY, hx, 0, -260, Math.round(v.hikiY), true, "dim_hiki_y"); 
     }
 
-    // --- 寸法線 ---
-    const offL = 200;
+    v.openings.forEach((op, idx) => {
+        const ox = oX + op.x * scale, oy = oY - op.y * scale, ow = op.w * scale, oh = op.h * scale;
+        const m = op.m * scale; 
+        
+        if (op.type === 'rect') {
+            outRect(ox, oy - oh, ow, oh, 1.0); 
+            if(m > 0 && ow > 2*m && oh > 2*m) {
+                outRect(ox + m, oy - oh + m, ow - 2*m, oh - 2*m, 0.6); 
+                outLine(ox, oy - oh, ox + m, oy - oh + m, 0.4); 
+                outLine(ox + ow, oy - oh, ox + ow - m, oy - oh + m, 0.4); 
+                outLine(ox, oy, ox + m, oy - m, 0.4); 
+                outLine(ox + ow, oy, ox + ow - m, oy - m, 0.4); 
+            }
+        } 
+        else if (op.type === 'circle') {
+            outCircle(ox + ow/2, oy - ow/2, ow/2, 1.0); 
+            if(m > 0 && ow > 2*m) {
+                outCircle(ox + ow/2, oy - ow/2, ow/2 - m, 0.6); 
+            }
+        } 
+        else if (op.type === 'louver') {
+            outRect(ox, oy - oh, ow, oh, 1.0); 
+            if(m > 0 && ow > 2*m && oh > 2*m) {
+                outRect(ox + m, oy - oh + m, ow - 2*m, oh - 2*m, 0.6); 
+                outLine(ox, oy - oh, ox + m, oy - oh + m, 0.4); 
+                outLine(ox + ow, oy - oh, ox + ow - m, oy - oh + m, 0.4); 
+                outLine(ox, oy, ox + m, oy - m, 0.4); 
+                outLine(ox + ow, oy, ox + ow - m, oy - m, 0.4); 
+                
+                for(let ly = op.m + 20; ly < op.h - op.m; ly += 20) { 
+                    outLine(ox + m, oy - ly * scale, ox + ow - m, oy - (ly - 5) * scale, 0.4); 
+                }
+            } else {
+                for(let ly = 20; ly < op.h; ly += 20) { 
+                    outLine(ox, oy - ly * scale, ox + ow, oy - (ly - 5) * scale, 0.4); 
+                }
+            }
+        }
+        
+        const opVertOffset = op.x + 120; 
+
+        if (op.type === 'louver') {
+            drawDim(scale, oX, oY, op.x, op.y, op.x, 0, opVertOffset, Math.round(op.y), true, `op_${idx}_l_bot`);
+            drawDim(scale, oX, oY, op.x, op.y + op.h, op.x, op.y, opVertOffset, Math.round(op.h), true, `op_${idx}_l_h`);
+        } else {
+            drawDim(scale, oX, oY, op.x, v.H, op.x, op.y + op.h, opVertOffset, Math.round(v.H - (op.y + op.h)), true, `op_${idx}_v_top`);
+            drawDim(scale, oX, oY, op.x, op.y + op.h, op.x, op.y, opVertOffset, Math.round(op.h), true, `op_${idx}_v_h`);
+        }
+
+        drawDim(scale, oX, oY, 0, op.y + op.h, op.x, op.y + op.h, 80, Math.round(op.x), false, `op_${idx}_h_l`);
+        drawDim(scale, oX, oY, op.x, op.y + op.h, op.x + op.w, op.y + op.h, 80, Math.round(op.w), false, `op_${idx}_h_w`);
+    });
+
+    const offOverall = 450; const offDetail = 220;  
+
+    drawDim(scale, oX, oY, 0, v.H, v.W, v.H, offOverall, Math.round(v.W), false, "dim_w_all"); 
+    drawDim(scale, oX, oY, 0, v.H, v.TSL, v.H, offDetail, Math.round(v.TSL), false, "dim_w_tsl"); 
+    drawDim(scale, oX, oY, v.TSL, v.H, v.W-v.TSR, v.H, offDetail, Math.round(v.W-v.TSL-v.TSR), false, "dim_w_mid"); 
+    drawDim(scale, oX, oY, v.W-v.TSR, v.H, v.W, v.H, offDetail, Math.round(v.TSR), false, "dim_w_tsr"); 
+
+    drawDim(scale, oX, oY, 0, v.H, 0, 0, offOverall, Math.round(v.H), true, "dim_h_all"); 
+    drawDim(scale, oX, oY, 0, v.H, 0, v.H - v.TT, offDetail, Math.round(v.TT), true, "dim_h_tt"); 
+    drawDim(scale, oX, oY, 0, v.TB, 0, 0, offDetail, Math.round(v.TB), true, "dim_h_tb"); 
     if(v.useMid) {
-        drawDim(scale, oX, oY, 0, v.HM-v.TM/2, 0, v.TB, offL, Math.round(v.HM-v.TM/2-v.TB), true);
-        drawDim(scale, oX, oY, 0, v.HM+v.TM/2, 0, v.HM-v.TM/2, offL, Math.round(v.TM), true);
-        drawDim(scale, oX, oY, 0, v.H-v.TT, 0, v.HM+v.TM/2, offL, Math.round(v.H-v.TT-(v.HM+v.TM/2)), true);
-    } else drawDim(scale, oX, oY, 0, v.H-v.TT, 0, v.TB, offL, Math.round(v.H-v.TB-v.TT), true);
-    drawDim(scale, oX, oY, 0, v.H, 0, v.H-v.TT, offL, Math.round(v.TT), true);
-    drawDim(scale, oX, oY, 0, v.TB, 0, 0, offL, Math.round(v.TB), true);
-    drawDim(scale, oX, oY, 0, v.H, 0, 0, 400, Math.round(v.H), true); 
-    drawDim(scale, oX, oY, 0, v.H, v.W, v.H, 400, v.W);
+        drawDim(scale, oX, oY, 0, v.HM-v.TM/2, 0, v.TB, offDetail, Math.round(v.HM-v.TM/2-v.TB), true, "dim_h_mid1");
+        drawDim(scale, oX, oY, 0, v.HM+v.TM/2, 0, v.HM-v.TM/2, offDetail, Math.round(v.TM), true, "dim_h_mid2");
+        drawDim(scale, oX, oY, 0, v.H-v.TT, 0, v.HM+v.TM/2, offDetail, Math.round(v.H-v.TT-(v.HM+v.TM/2)), true, "dim_h_mid3");
+    } else {
+        drawDim(scale, oX, oY, 0, v.H - v.TT, 0, v.TB, offDetail, Math.round(v.H - v.TT - v.TB), true, "dim_h_mid_all");
+    }
 
-    // --- 平面図・断面図 ---
-    const py = v.H + 1000; line(0, py, v.W, py); line(0, py+v.D, v.W, py+v.D); line(0, py, 0, py+v.D); line(v.W, py, v.W, py+v.D);
-    line(v.TSL, py, v.TSL, py+v.D); line(v.W-v.TSR, py, v.W-v.TSR, py+v.D);
-    drawDim(scale, oX, oY, 0, py+v.D, 0, py, -150, Math.round(v.D), true);
-    const sx = v.W + 600; line(sx, 0, sx+v.D, 0); line(sx, v.H, sx+v.D, v.H); line(sx, 0, sx, v.H); line(sx+v.D, 0, sx+v.D, v.H);
-    drawDim(scale, oX, oY, sx, 0, sx+v.D, 0, -100, Math.round(v.D));
+    const py = v.H + 1000; line(0, py, v.W, py, 1); line(0, py+v.D, v.W, py+v.D, 1); line(0, py, 0, py+v.D, 1); line(v.W, py, v.W, py+v.D, 1);
+    line(v.TSL, py, v.TSL, py+v.D, 0.6); line(v.W-v.TSR, py, v.W-v.TSR, py+v.D, 0.6); 
+    drawDim(scale, oX, oY, v.TSL, py, 0, py, -150, Math.round(v.TSL), false, "dim_p_l");
+    drawDim(scale, oX, oY, v.W, py, v.W-v.TSR, py, -150, Math.round(v.TSR), false, "dim_p_r");
+    drawDim(scale, oX, oY, 0, py+v.D, 0, py, -150, Math.round(v.D), true, "dim_p_d");
 
-    // --- テキスト & 矢印 ---
+    const sx = v.W + 600; line(sx, 0, sx+v.D, 0, 1); line(sx, v.H, sx+v.D, v.H, 1); line(sx, 0, sx, v.H, 1); line(sx+v.D, 0, sx+v.D, v.H, 1);
+    line(sx, v.TB, sx+v.D, v.TB, 0.6); line(sx, v.H-v.TT, sx+v.D, v.H-v.TT, 0.6);
+    drawDim(scale, oX, oY, sx+v.D, v.TB, sx+v.D, 0, 100, Math.round(v.TB), true, "dim_s_b");
+    drawDim(scale, oX, oY, sx+v.D, v.H, sx+v.D, v.H-v.TT, 100, Math.round(v.TT), true, "dim_s_t");
+    drawDim(scale, oX, oY, sx, 0, sx+v.D, 0, -100, Math.round(v.D), false, "dim_s_w");
+
+    const sX = w - 440, sY = 20, tW = 420, colW = 80, headerH = 28, rowH = 22;
+    const totalSpecH = headerH + (v.specLabels.length * rowH) + 28;
+    outRect(sX, sY, tW, totalSpecH, 0.5); outLine(sX, sY + headerH, sX + tW, sY + headerH, 0.5);
+    outLine(sX + colW, sY, sX + colW, sY + headerH + (v.specLabels.length * rowH), 0.5);
+    for(let i=1; i<=v.specLabels.length; i++) outLine(sX, sY + headerH + i*rowH, sX + tW, sY + headerH + i*rowH, 0.5);
+    outText("名称", sX + colW/2, sY + headerH/2, 13); outText("仕上 ・ 金物", sX + colW + (tW-colW)/2, sY + headerH/2, 13);
+    v.specLabels.forEach((l, i) => { outText(l, sX+colW/2, sY+headerH+i*rowH+rowH/2, 12); outText(v.specValues[i], sX+colW+10, sY+headerH+i*rowH+rowH/2, 12, 0, "#000", "left"); });
+    outText(v.specNote, sX+10, sY+headerH+v.specLabels.length*rowH+14, 12, 0, "#c0392b", "left");
+
     v.extraTexts.forEach(et => {
         if(et.text.trim() === "") return;
-        const tx = oX + et.x*scale, ty = oY - et.y*scale;
-        outText(et.text, tx, ty, 12, false, "#000", "left");
+        const tx = oX + et.x*scale, ty = oY - et.y*scale; 
+        outText(et.text, tx, ty, 12, et.angle, "#000", "left");
         if(et.useArrow) {
-            const ax = oX + et.ax*scale, ay = oY - et.ay*scale;
-            outLine(tx, ty, ax, ay, 0.4);
+            const ax = oX + et.ax*scale, ay = oY - et.ay*scale; outLine(tx, ty, ax, ay, 0.4);
             const headLen = 10*scale, angle = Math.atan2(ay-ty, ax-tx);
             outLine(ax, ay, ax - headLen*Math.cos(angle-Math.PI/6), ay - headLen*Math.sin(angle-Math.PI/6), 0.6);
             outLine(ax, ay, ax - headLen*Math.cos(angle+Math.PI/6), ay - headLen*Math.sin(angle+Math.PI/6), 0.6);
@@ -479,56 +745,103 @@ function drawPreview() { _isDXF = false; generateDrawing(); }
 function resetViewAndPrint() { viewZoom = 1.0; viewOffsetX = 0; viewOffsetY = 0; drawPreview(); setTimeout(() => window.print(), 200); }
 function exportDXF() { _isDXF = true; _dxfStr = "  0\r\nSECTION\r\n  2\r\nENTITIES\r\n"; generateDrawing(); _dxfStr += "  0\r\nENDSEC\r\n  0\r\nEOF\r\n"; _isDXF = false; const blob = new Blob([_dxfStr], { type: 'text/plain;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `建具図.dxf`; a.click(); }
 
-// --- イベント制御 ---
+// イベント (独立消しゴム＆安全なUndo対応)
 document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById('previewCanvas');
     let isDragging = false, dragStartX = 0, dragStartY = 0;
-    let dragTargetText = null; let dragTargetArrow = null;
-
+    let dragTargetText = null, dragTargetArrow = null, dragTargetOpening = null, dragTargetDim = null;
+    
     canvas.addEventListener('mousedown', (e) => {
         const rect = canvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left - viewOffsetX) / viewZoom;
-        const my = (e.clientY - rect.top - viewOffsetY) / viewZoom;
+        const mx = (e.clientX - rect.left - viewOffsetX) / viewZoom, my = (e.clientY - rect.top - viewOffsetY) / viewZoom;
         const v = getValues();
-        dragTargetText = null; dragTargetArrow = null;
-        for(let et of v.extraTexts) {
-            if(et.useArrow) {
-                const ax = lastOriginX + et.ax * lastScale, ay = lastOriginY - et.ay * lastScale;
-                if(Math.hypot(mx - ax, my - ay) < 15) { dragTargetArrow = et; break; }
-            }
-            const tx = lastOriginX + et.x * lastScale, ty = lastOriginY - et.y * lastScale;
-            if(mx >= tx && mx <= tx + et.text.length*12 && my >= ty-15 && my <= ty+15) { dragTargetText = et; break; }
+        
+        dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null;
+        
+        for(let op of v.openings) { if (mx >= lastOriginX + op.x * lastScale && mx <= lastOriginX + (op.x + op.w) * lastScale && my >= lastOriginY - op.y * lastScale - op.h * lastScale && my <= lastOriginY - op.y * lastScale) { dragTargetOpening = op; break; } }
+        if(!dragTargetOpening) { 
+            for(let et of v.extraTexts) { 
+                if(et.useArrow && Math.hypot(mx - (lastOriginX + et.ax * lastScale), my - (lastOriginY - et.ay * lastScale)) < 15) { 
+                    dragTargetArrow = et; break; 
+                } 
+                if(Math.hypot(mx - (lastOriginX + et.x * lastScale), my - (lastOriginY - et.y * lastScale)) < 25) { 
+                    dragTargetText = et; break; 
+                } 
+            } 
         }
+        if(!dragTargetOpening && !dragTargetArrow && !dragTargetText) {
+            for(let dim of window.clickableDims) {
+                if (dim.type === 'text' && !window.hiddenDimTexts.includes(dim.id)) {
+                    if (Math.hypot(mx - dim.cx, my - dim.cy) < 20) { dragTargetDim = dim; break; }
+                }
+                if (dim.type === 'line' && !window.hiddenDimLines.includes(dim.id)) {
+                    if (!dim.isVert && Math.abs(my - dim.y) < 15 && mx >= dim.x1 - 5 && mx <= dim.x2 + 5) { dragTargetDim = dim; break; }
+                    if (dim.isVert && Math.abs(mx - dim.x) < 15 && my >= dim.y1 - 5 && my <= dim.y2 + 5) { dragTargetDim = dim; break; }
+                }
+            }
+        }
+        
+        if (isEraserMode) {
+            let hitEraser = false;
+            if (dragTargetDim) {
+                if (dragTargetDim.type === 'text') {
+                    if (!window.hiddenDimTexts.includes(dragTargetDim.id)) {
+                        window.hiddenDimTexts.push(dragTargetDim.id);
+                        window.eraserHistory.push({ type: 'dimText', id: dragTargetDim.id });
+                    }
+                } else {
+                    if (!window.hiddenDimLines.includes(dragTargetDim.id)) {
+                        window.hiddenDimLines.push(dragTargetDim.id);
+                        window.eraserHistory.push({ type: 'dimLine', id: dragTargetDim.id });
+                    }
+                }
+                hitEraser = true;
+            } else if (dragTargetText || dragTargetArrow) {
+                const target = dragTargetText || dragTargetArrow;
+                const rowEl = target.rowEl;
+                window.eraserHistory.push({ type: 'domNode', parent: rowEl.parentNode, nextSibling: rowEl.nextSibling, el: rowEl });
+                rowEl.remove();
+                hitEraser = true;
+            } else if (dragTargetOpening) {
+                const rowEl = dragTargetOpening.rowEl;
+                window.eraserHistory.push({ type: 'domNode', parent: rowEl.parentNode, nextSibling: rowEl.nextSibling, el: rowEl });
+                rowEl.remove();
+                hitEraser = true;
+            }
+
+            dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null;
+            isDragging = true; 
+            dragStartX = e.clientX; dragStartY = e.clientY;
+            if (hitEraser) drawPreview();
+            return;
+        }
+
         isDragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
     });
-
+    
     canvas.addEventListener('mousemove', (e) => {
         if(!isDragging) return;
-        const dx = (e.clientX - dragStartX) / viewZoom / lastScale, dy = (e.clientY - dragStartY) / viewZoom / lastScale;
-        if(dragTargetArrow) {
-            dragTargetArrow.ax += dx; dragTargetArrow.ay -= dy;
-            dragTargetArrow.elAX.value = Math.round(dragTargetArrow.ax); dragTargetArrow.elAY.value = Math.round(dragTargetArrow.ay);
-            drawPreview();
-        } else if(dragTargetText) {
-            dragTargetText.x += dx; dragTargetText.y -= dy;
-            dragTargetText.elX.value = Math.round(dragTargetText.x); dragTargetText.elY.value = Math.round(dragTargetText.y);
-            drawPreview();
-        } else {
-            viewOffsetX += e.clientX - dragStartX; viewOffsetY += e.clientY - dragStartY;
+        const dx = (e.clientX - dragStartX) / viewZoom;
+        const dy = (e.clientY - dragStartY) / viewZoom;
+        const dxScale = dx / lastScale; 
+        const dyScale = dy / lastScale;
+
+        if(dragTargetOpening) { dragTargetOpening.x += dxScale; dragTargetOpening.y -= dyScale; dragTargetOpening.elX.value = Math.round(dragTargetOpening.x); dragTargetOpening.elY.value = Math.round(dragTargetOpening.y); drawPreview(); }
+        else if(dragTargetArrow) { dragTargetArrow.ax += dxScale; dragTargetArrow.ay -= dyScale; dragTargetArrow.elAX.value = Math.round(dragTargetArrow.ax); dragTargetArrow.elAY.value = Math.round(dragTargetArrow.ay); drawPreview(); }
+        else if(dragTargetText) { dragTargetText.x += dxScale; dragTargetText.y -= dyScale; dragTargetText.elX.value = Math.round(dragTargetText.x); dragTargetText.elY.value = Math.round(dragTargetText.y); drawPreview(); }
+        else if(dragTargetDim) {
+            window.customDimOffsets[dragTargetDim.id] = window.customDimOffsets[dragTargetDim.id] || {x: 0, y: 0};
+            if (dragTargetDim.isVert) { window.customDimOffsets[dragTargetDim.id].x += dx; } 
+            else { window.customDimOffsets[dragTargetDim.id].y += dy; }
             drawPreview();
         }
+        else { viewOffsetX += e.clientX - dragStartX; viewOffsetY += e.clientY - dragStartY; drawPreview(); }
+        
         dragStartX = e.clientX; dragStartY = e.clientY;
     });
-
-    window.addEventListener('mouseup', () => { isDragging = false; dragTargetText = null; dragTargetArrow = null; });
-    canvas.addEventListener('wheel', (e) => {
-        e.preventDefault(); const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
-        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-        const worldX = (mouseX - viewOffsetX) / viewZoom, worldY = (mouseY - viewOffsetY) / viewZoom;
-        viewZoom = Math.max(0.1, Math.min(viewZoom * zoomFactor, 10)); 
-        viewOffsetX = mouseX - worldX * viewZoom; viewOffsetY = mouseY - worldY * viewZoom; drawPreview();
-    }, { passive: false });
+    
+    window.addEventListener('mouseup', () => { isDragging = false; dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null; });
+    canvas.addEventListener('wheel', (e) => { e.preventDefault(); const rect = canvas.getBoundingClientRect(); const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top; const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9; const worldX = (mouseX - viewOffsetX) / viewZoom, worldY = (mouseY - viewOffsetY) / viewZoom; viewZoom = Math.max(0.1, Math.min(viewZoom * zoomFactor, 10)); viewOffsetX = mouseX - worldX * viewZoom; viewOffsetY = mouseY - worldY * viewZoom; drawPreview(); }, { passive: false });
     canvas.addEventListener('dblclick', () => { viewZoom=1; viewOffsetX=0; viewOffsetY=0; drawPreview(); });
 });
 </script>
