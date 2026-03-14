@@ -2,16 +2,16 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>建具作図ツール V111.23 - 無限Undo完全対応版</title>
+    <title>建具作図ツール V111.56 - A3実寸印刷(他機能完全固定)版</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #eef2f3; padding: 20px; display: flex; flex-direction: column; align-items: center; margin: 0; }
-        .container { width: 1650px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: grid; grid-template-columns: 420px 1fr; gap: 20px; }
+        .container { width: 1650px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: grid; grid-template-columns: 440px 1fr; gap: 20px; }
         h1 { grid-column: 1 / -1; font-size: 18px; text-align: center; color: #2c3e50; border-bottom: 3px solid #e67e22; padding-bottom: 10px; margin-top:0; }
         .controls { display: flex; flex-direction: column; gap: 6px; max-height: 92vh; overflow-y: auto; padding-right: 15px; }
         .group { background: #fff5eb; padding: 10px; border-radius: 8px; border-left: 5px solid #e67e22; margin-bottom: 4px; }
         .group-title { font-size: 11px; color: #d35400; margin-bottom: 6px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #ffdec0; }
         label { font-size: 11px; font-weight: bold; color: #333; display: block; margin-top: 4px; }
-        input, select { width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 13px; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 13px; }
         
         .scale-btn-group { display: flex; gap: 2px; margin-top: 4px; }
         .btn-scale { flex: 1; padding: 3px 0; font-size: 10px; background: #fff; border: 1px solid #e67e22; color: #e67e22; border-radius: 4px; cursor: pointer; transition: 0.2s; }
@@ -33,8 +33,9 @@
         .btn-gray { background: #95a5a6; }
 
         .preview-area { background: #dcdde1; display: grid; grid-template-columns: 1fr 40px; grid-template-rows: 1fr 40px; border: 2px solid #7f8fa6; position: relative; overflow: hidden; }
+        
         .canvas-wrapper { grid-column: 1; grid-row: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; background: #555; }
-        canvas { background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.2); cursor: grab; }
+        canvas { background: white; box-shadow: 0 5px 15px rgba(0,0,0,0.2); cursor: grab; width: 100%; height: auto; max-height: 100%; object-fit: contain; touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
         
         .slider-v { grid-column: 2; grid-row: 1; display: flex; justify-content: center; padding: 20px 0; background: #f1f2f6; border-left: 1px solid #ccc; }
         .slider-h { grid-column: 1; grid-row: 2; display: flex; align-items: center; padding: 0 20px; background: #f1f2f6; border-top: 1px solid #ccc; }
@@ -44,22 +45,20 @@
 
         .hint-badge { position: absolute; bottom: 50px; right: 50px; background: rgba(230, 126, 34, 0.9); color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; pointer-events: none; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 
-        /* 印刷余白を極限まで小さく */
+        /* 💡 修正箇所：ブラウザの自動縮小を防ぐため、A3のミリメートル寸法(420mm x 297mm)を強制適用 */
         @media print {
-            @page { size: A4 landscape; margin: 0; }
-            body, html { width: 100%; height: 100%; background: white; padding: 0; margin: 0; overflow: hidden; }
-            .controls, h1, .hint-badge, .slider-v, .slider-h { display: none !important; }
-            .container { width: 100%; height: 100%; display: block; padding: 0; margin: 0; border-radius: 0; box-shadow: none; border: none; }
-            .preview-area { background: none; border: none; display: block; width: 100%; height: 100%; padding: 0; margin: 0; }
-            .canvas-wrapper { background: none; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
-            canvas { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: none; border: none; }
+            @page { size: A3 landscape; margin: 0; }
+            body, html { width: 420mm !important; height: 297mm !important; margin: 0 !important; padding: 0 !important; background: white !important; overflow: hidden !important; }
+            .controls, h1, .hint-badge, .slider-v, .slider-h, .action-buttons { display: none !important; }
+            .container, .preview-area, .canvas-wrapper { display: block !important; position: absolute !important; top: 0 !important; left: 0 !important; width: 420mm !important; height: 297mm !important; margin: 0 !important; padding: 0 !important; border: none !important; box-shadow: none !important; background: transparent !important; page-break-inside: avoid !important; }
+            canvas { position: absolute !important; top: 0 !important; left: 0 !important; transform: none !important; width: 420mm !important; height: 297mm !important; max-width: none !important; max-height: none !important; margin: 0 !important; padding: 0 !important; border: none !important; box-shadow: none !important; display: block !important; object-fit: fill !important; page-break-inside: avoid !important; }
         }
     </style>
 </head>
 <body onload="initApp()">
 
 <div class="container">
-    <h1>建具作図ツール V111.23 (無限Undo完全対応版)</h1>
+    <h1>建具作図ツール V111.56 (A3実寸・縮小防止版)</h1>
     <div class="controls">
         
         <div class="group" style="background: #e8f6f3; border-left-color: #1abc9c;">
@@ -96,6 +95,29 @@
 
         <div class="group">
             <div class="group-title">2. 基本寸法・配置調整</div>
+            <div style="margin-bottom: 8px; background: #fff; padding: 5px; border-radius: 4px; border: 1px solid #ffd1a4;">
+                <div style="display:flex; gap:5px;">
+                    <div style="flex:1;">
+                        <label>建具タイプ</label>
+                        <select id="doorType" onchange="drawPreview()">
+                            <option value="standard">標準（軌跡なし・1枚）</option>
+                            <option value="single">片開き（1枚）</option>
+                            <option value="double">両開き（2枚）</option>
+                            <option value="hikichigai2">2枚引き違い</option>
+                            <option value="hikichigai3">3枚引き違い</option>
+                            <option value="hikichigai4">4枚引き違い</option>
+                            <option value="hikichigai5">5枚引き違い</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label>吊り元 (片開き時)</label>
+                        <select id="singleHinge" onchange="drawPreview()" style="background:#fff3e0; border-color:#e67e22;">
+                            <option value="left" selected>左 吊り元</option>
+                            <option value="right">右 吊り元</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div style="display:flex; gap:5px;">
                 <div><label>全幅 (W)</label><input type="number" id="w" value="786" oninput="drawPreview()"></div>
                 <div><label>全高 (H)</label><input type="number" id="h" value="2320" oninput="drawPreview()"></div>
@@ -107,6 +129,7 @@
             <div style="display:flex; gap:5px; margin-top:5px;">
                 <div><label>左框</label><input type="number" id="tsl" value="60" oninput="drawPreview()"></div>
                 <div><label>右框</label><input type="number" id="tsr" value="60" oninput="drawPreview()"></div>
+                <div><label>重なり</label><input type="number" id="overlapVal" value="60" oninput="drawPreview()" style="background:#fff3e0;" title="召し合わせ寸法"></div>
             </div>
             <div style="display:flex; gap:5px;">
                 <div><label>上山</label><input type="number" id="tt" value="80" oninput="drawPreview()"></div>
@@ -140,29 +163,77 @@
         </div>
 
         <div class="group">
-            <div class="group-title">4. 引き手設定</div>
+            <div class="group-title">4. 金物（引手・レバー）設定</div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
                 <input type="checkbox" id="showHikite" onchange="drawPreview()" checked>
-                <label style="margin:0;">引き手を表示</label>
+                <label style="margin:0;">金物を表示</label>
             </div>
-            <div style="display:flex; gap:5px;">
-                <div><label>縦/横</label><input type="number" id="hikiH" value="100" oninput="drawPreview()"></div>
-                <div><label>横幅</label><input type="number" id="hikiW" value="50" oninput="drawPreview()"></div>
+            <div style="margin-bottom:5px;">
+                <select id="hardwareType" onchange="drawPreview()" style="background:#fff3e0; font-weight:bold; color:#d35400; border: 1px solid #e67e22;">
+                    <option value="hikite">掘り込み引手（長方形）</option>
+                    <option value="lever">レバーハンドル</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:5px; font-size:10px;">
+                <div title="引手の縦、またはレバーの長さ"><label>縦 / 長さ</label><input type="number" id="hikiH" value="100" oninput="drawPreview()"></div>
+                <div title="引手の横幅、または丸座の直径"><label>横 / 丸座</label><input type="number" id="hikiW" value="50" oninput="drawPreview()"></div>
                 <div><label>中心高</label><input type="number" id="hikiY" value="900" oninput="drawPreview()"></div>
+                <div><label>チリ</label><input type="number" id="hikiX" value="30" oninput="drawPreview()"></div>
             </div>
+            <div style="display:flex; gap:2px; margin-top:5px; background:#fff3e0; padding:5px; border-radius:4px; font-size:10px;">
+                <div style="flex:1; text-align:center;"><label>1枚</label><br><select id="hk1" onchange="drawPreview()" style="width:100%;"><option value="left" selected>左</option><option value="right">右</option><option value="none">無</option><option value="both">両</option></select><br><label style="display:inline-block; font-weight:normal; margin-top:3px;"><input type="checkbox" id="hk1_movable">動かす</label></div>
+                <div style="flex:1; text-align:center;"><label>2枚</label><br><select id="hk2" onchange="drawPreview()" style="width:100%;"><option value="left">左</option><option value="right" selected>右</option><option value="none">無</option><option value="both">両</option></select><br><label style="display:inline-block; font-weight:normal; margin-top:3px;"><input type="checkbox" id="hk2_movable">動かす</label></div>
+                <div style="flex:1; text-align:center;"><label>3枚</label><br><select id="hk3" onchange="drawPreview()" style="width:100%;"><option value="left">左</option><option value="right" selected>右</option><option value="none">無</option><option value="both">両</option></select><br><label style="display:inline-block; font-weight:normal; margin-top:3px;"><input type="checkbox" id="hk3_movable">動かす</label></div>
+                <div style="flex:1; text-align:center;"><label>4枚</label><br><select id="hk4" onchange="drawPreview()" style="width:100%;"><option value="left">左</option><option value="right" selected>右</option><option value="none">無</option><option value="both">両</option></select><br><label style="display:inline-block; font-weight:normal; margin-top:3px;"><input type="checkbox" id="hk4_movable">動かす</label></div>
+                <div style="flex:1; text-align:center;"><label>5枚</label><br><select id="hk5" onchange="drawPreview()" style="width:100%;"><option value="left">左</option><option value="right" selected>右</option><option value="none">無</option><option value="both">両</option></select><br><label style="display:inline-block; font-weight:normal; margin-top:3px;"><input type="checkbox" id="hk5_movable">動かす</label></div>
+            </div>
+        </div>
+
+        <div class="group" style="background: #e8f8f5; border-left-color: #3498db;">
+            <div class="group-title" style="color: #2980b9;">5. 詳細形状（小口・マブイ等）</div>
             <div style="display:flex; gap:5px;">
-                <div><label>取付側</label>
-                    <select id="hikiSide" onchange="drawPreview()">
-                        <option value="left">左寄り</option>
-                        <option value="right" selected>右寄り</option>
+                <div style="flex:1;">
+                    <label>上小口</label>
+                    <select id="topKoguchi" onchange="drawPreview()">
+                        <option value="---">---</option>
+                        <option value="平（フラット）">平（フラット）</option>
+                        <option value="樋端しゃくり（溝）" selected>樋端しゃくり（溝）</option>
+                        <option value="ガイドピン用溝">ガイドピン用溝</option>
                     </select>
                 </div>
-                <div><label>チリ</label><input type="number" id="hikiX" value="30" oninput="drawPreview()"></div>
+                <div style="flex:1;">
+                    <label>下小口</label>
+                    <select id="botKoguchi" onchange="drawPreview()">
+                        <option value="---">---</option>
+                        <option value="V溝（Vレール用）" selected>V溝（Vレール用）</option>
+                        <option value="平溝（平コマ用）">平溝（平コマ用）</option>
+                        <option value="丸溝（甲丸用）">丸溝（甲丸用）</option>
+                        <option value="Y溝（Yレール用）">Y溝（Yレール用）</option>
+                        <option value="平（フラット）">平（フラット）</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top:5px;">
+                <label>マブイ（襖・障子の枠/面取り）</label>
+                <select id="mabuiShape" onchange="drawPreview()">
+                    <option value="---">---</option>
+                    <option value="糸面（いとめん）" selected>糸面（いとめん）</option>
+                    <option value="丸面 / 坊主（ぼうず）">丸面 / 坊主（ぼうず）</option>
+                    <option value="平縁 / 角（かく）">平縁 / 角（かく）</option>
+                    <option value="銀杏面（ぎんなん）">銀杏面（ぎんなん）</option>
+                    <option value="紐面（ひもめん）">紐面（ひもめん）</option>
+                </select>
+            </div>
+            <div style="margin-top:8px; padding:5px; background:#fff; border:1px solid #bdc3c7; border-radius:4px;">
+                <label style="display:flex; align-items:center; gap:5px; margin:0; cursor:pointer;">
+                    <input type="checkbox" id="drawKoguchiShape" onchange="drawPreview()" checked>
+                    <span style="font-size:10px; color:#c0392b; font-weight:bold;">図面の断面図に「上凸・下凹」を左寄せで描画</span>
+                </label>
             </div>
         </div>
 
         <div class="group">
-            <div class="group-title">5. 仕上・金物仕様</div>
+            <div class="group-title">6. 仕上・金物仕様</div>
             <div id="specContainer"></div>
             <button class="btn-add" onclick="addRow()">＋ 行を追加</button>
             <div style="margin-top:10px;">
@@ -172,37 +243,37 @@
         </div>
 
         <div class="group">
-            <div class="group-title">6. 明かり取り・ガラリ</div>
+            <div class="group-title">7. 明かり取り・ガラリ</div>
             <div style="font-size:10px; color:#555; margin-bottom:5px;">X, Y, W(幅), H(高), M(見付)</div>
             <div id="openingContainer"></div>
             <button class="btn-add" onclick="addOpeningRow()">＋ 開口部追加</button>
         </div>
 
         <div class="group">
-            <div class="group-title">7. 自由テキスト配置</div>
+            <div class="group-title">8. 自由テキスト配置</div>
             <div style="font-size:10px; color:#555; margin-bottom:5px;">内容, X, Y, 角度, 矢, 矢X, 矢Y</div>
             <div id="textExtraContainer"></div>
             <button class="btn-add" onclick="addTextRow()">＋ テキスト追加</button>
         </div>
 
         <div class="group" style="background: #f8d7da; border-left-color: #e74c3c;">
-            <div class="group-title" style="color: #c0392b;">8. 独立消しゴム＆編集ツール</div>
+            <div class="group-title" style="color: #c0392b;">9. 独立消しゴム＆編集ツール</div>
             <div class="row-btns">
                 <button id="eraserBtn" class="btn-main btn-gray" style="background:#95a5a6; padding:10px; font-size:12px;" onclick="toggleEraser()">🧹 消しゴム：OFF</button>
-                <button class="btn-main" style="background:#bdc3c7; color:#333; padding:10px; font-size:12px;" onclick="undoEraser()">↩ 1つ戻す (無限Undo)</button>
+                <button class="btn-main" style="background:#bdc3c7; color:#333; padding:10px; font-size:12px;" onclick="undoEraser()">↩ 1つ戻す</button>
             </div>
-            <div style="font-size:10px; color:#c0392b; margin-top:5px; line-height:1.3;">ONの状態でキャンバス上の「文字」「数字」「線」をクリックすると独立して消せます。</div>
+            <div style="font-size:10px; color:#c0392b; margin-top:5px; line-height:1.3;">ONの状態でキャンバス上の「文字」「線」「ガラリ」「引手」をクリックすると個別に消せます.</div>
         </div>
 
         <div class="action-buttons">
-            <button class="btn-main btn-orange" onclick="resetViewAndPrint()">印刷 / PDF保存</button>
+            <button class="btn-main btn-orange" onclick="resetViewAndPrint()">印刷 / PDF保存 (A3横・100%出力)</button>
             <button class="btn-main btn-dark" onclick="exportDXF()">DXF出力</button>
         </div>
     </div>
 
     <div class="preview-area">
         <div class="canvas-wrapper">
-            <canvas id="previewCanvas" width="1120" height="792"></canvas>
+            <canvas id="previewCanvas" width="1587" height="1123"></canvas>
         </div>
         <div class="slider-v">
             <input type="range" id="slideY" min="-1000" max="1000" value="0" step="10" oninput="syncInput('Y')">
@@ -210,20 +281,26 @@
         <div class="slider-h">
             <input type="range" id="slideX" min="-1000" max="1000" value="0" step="10" oninput="syncInput('X')">
         </div>
-        <div class="hint-badge" id="hintBadge">💡 ドラッグ移動＆独立消しゴム＆文字回転 搭載！</div>
+        <div class="hint-badge" id="hintBadge">💡 プリンター設定は必ず「A3横」「倍率100% (または デフォルト)」にしてください！</div>
     </div>
 </div>
 
 <script>
-// --- グローバル変数 ---
 window.customDimOffsets = window.customDimOffsets || {};
 window.hiddenDimTexts = window.hiddenDimTexts || [];
 window.hiddenDimLines = window.hiddenDimLines || [];
-window.eraserHistory = window.eraserHistory || []; // Undo履歴用スタック
+window.eraserHistory = window.eraserHistory || [];
 window.clickableDims = []; 
+window.clickableHikites = [];
+window.customHikiOffsets = window.customHikiOffsets || {};
+window.hiddenHikites = window.hiddenHikites || [];
+window.clickableOpenings = [];
+window.customOpeningOffsets = window.customOpeningOffsets || {};
+window.hiddenOpenings = window.hiddenOpenings || [];
+window.hiddenTexts = window.hiddenTexts || [];
+
 let isEraserMode = false;
 
-// --- テキスト回転ボタン処理 ---
 function rotateText(btn) {
     let angle = parseInt(btn.dataset.angle) || 0;
     angle = (angle + 90) % 360; 
@@ -232,7 +309,6 @@ function rotateText(btn) {
     drawPreview();
 }
 
-// --- 消しゴム機能の制御 ---
 function toggleEraser() {
     isEraserMode = !isEraserMode;
     const btn = document.getElementById('eraserBtn');
@@ -242,72 +318,74 @@ function toggleEraser() {
         btn.style.background = "#e74c3c";
         btn.style.color = "white";
         document.getElementById('previewCanvas').style.cursor = "crosshair";
-        badge.innerText = "⚠️ 消しゴムON：文字・数字・線を個別に消せます";
+        badge.innerText = "⚠️ 消しゴムON：ガラリや文字などを個別に消せます";
         badge.style.background = "rgba(231, 76, 60, 0.9)";
     } else {
         btn.innerText = "🧹 消しゴム：OFF";
         btn.style.background = "#95a5a6";
         btn.style.color = "white";
         document.getElementById('previewCanvas').style.cursor = "grab";
-        badge.innerText = "💡 ドラッグ移動＆独立消しゴム＆文字回転 搭載！";
+        badge.innerText = "💡 プリンター設定は必ず「A3横」「倍率100%」にしてください！";
         badge.style.background = "rgba(230, 126, 34, 0.9)";
     }
 }
 
-// --- 無限Undo機能 (エラー回避強化版) ---
 function undoEraser() {
     if (!window.eraserHistory || window.eraserHistory.length === 0) return;
     const last = window.eraserHistory.pop(); 
     
-    if (last.type === 'dimText') {
-        window.hiddenDimTexts = window.hiddenDimTexts.filter(id => id !== last.id);
-    } else if (last.type === 'dimLine') {
-        window.hiddenDimLines = window.hiddenDimLines.filter(id => id !== last.id);
-    } else if (last.type === 'domNode') {
-        try {
-            // エラー回避：隣にあった要素がまだ親要素内に存在するかチェック
-            if (last.nextSibling && last.nextSibling.parentNode === last.parent) {
-                last.parent.insertBefore(last.el, last.nextSibling);
-            } else {
-                last.parent.appendChild(last.el); // 存在しない場合は一番下に追加して確実に復元
-            }
-        } catch(e) {
-            last.parent.appendChild(last.el); // 万が一エラーが起きても確実に末尾に復元
-        }
-    }
+    if (last.type === 'dimText') { window.hiddenDimTexts = window.hiddenDimTexts.filter(id => id !== last.id); } 
+    else if (last.type === 'dimLine') { window.hiddenDimLines = window.hiddenDimLines.filter(id => id !== last.id); } 
+    else if (last.type === 'opening') { window.hiddenOpenings = window.hiddenOpenings.filter(id => id !== last.id); } 
+    else if (last.type === 'hikite') { window.hiddenHikites = window.hiddenHikites.filter(id => id !== last.id); }
+    else if (last.type === 'text') { window.hiddenTexts = window.hiddenTexts.filter(id => id !== last.id); }
     drawPreview();
 }
 
-// --- プロジェクト管理 ---
-const STORAGE_KEY = 'tategu_final_perfect_data';
+const STORAGE_KEY = 'tategu_finale_master_data';
+
+let saveTimeout = null;
+function scheduleSave() {
+    if (_isDXF) return;
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(getProjectData()));
+    }, 500); 
+}
 
 function initApp() {
     ctx = document.getElementById('previewCanvas').getContext('2d');
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-        try { applyProjectData(JSON.parse(saved)); } catch(e) { resetToDefault(); }
-    } else {
-        resetToDefault();
-    }
+    if (saved) { try { applyProjectData(JSON.parse(saved)); } catch(e) { resetToDefault(); } } 
+    else { resetToDefault(); }
 }
 
 function getProjectData() {
     const v = getValues();
     return {
         inputs: {
-            compName: v.compName, pjName: v.pjName, dwgName: v.dwgName, scaleStr: v.scaleStr,
-            dateStr: v.dateStr, managerStr: v.managerStr, dwgNoStr: v.dwgNoStr,
-            w: v.W, h: v.H, offX: v.offX, offY: v.offY, tsl: v.TSL, tsr: v.TSR, tt: v.TT, tb: v.TB, d: v.D,
+            compName: v.compName, pjName: v.pjName, dwgName: v.dwgName, scaleStr: v.scaleStr, dateStr: v.dateStr, managerStr: v.managerStr, dwgNoStr: v.dwgNoStr,
+            w: v.W, h: v.H, offX: v.offX, offY: v.offY, tsl: v.TSL, tsr: v.TSR, tt: v.TT, tb: v.TB, d: v.D, overlapVal: v.overlapVal,
             useMid: v.useMid, tm: v.TM, hm: v.HM, stT: v.stT, shT: v.shT, stB: v.stB, shB: v.shB,
-            ktv: v.ktv, kth: v.kth, showHikite: v.showHikite, hikiH: v.hikiH, hikiW: v.hikiW,
-            hikiY: v.hikiY, hikiSide: v.hikiSide, hikiX: v.hikiX, specNote: v.specNote
+            ktv: v.ktv, kth: v.kth, showHikite: v.showHikite, hikiH: v.hikiH, hikiW: v.hikiW, hikiY: v.hikiY, hikiX: v.hikiX, specNote: v.specNote,
+            doorType: document.getElementById('doorType').value,
+            singleHinge: document.getElementById('singleHinge') ? document.getElementById('singleHinge').value : 'left',
+            hardwareType: document.getElementById('hardwareType') ? document.getElementById('hardwareType').value : 'hikite',
+            topKoguchi: v.topKoguchi, botKoguchi: v.botKoguchi, mabuiShape: v.mabuiShape,
+            drawKoguchiShape: document.getElementById('drawKoguchiShape') ? document.getElementById('drawKoguchiShape').checked : true,
+            hk1: v.hk1, hk2: v.hk2, hk3: v.hk3, hk4: v.hk4, hk5: v.hk5,
+            hk1_movable: document.getElementById('hk1_movable') ? document.getElementById('hk1_movable').checked : false, 
+            hk2_movable: document.getElementById('hk2_movable') ? document.getElementById('hk2_movable').checked : false,
+            hk3_movable: document.getElementById('hk3_movable') ? document.getElementById('hk3_movable').checked : false, 
+            hk4_movable: document.getElementById('hk4_movable') ? document.getElementById('hk4_movable').checked : false, 
+            hk5_movable: document.getElementById('hk5_movable') ? document.getElementById('hk5_movable').checked : false
         },
         specs: v.specLabels.map((l, i) => ({ label: l, value: v.specValues[i] })),
-        extraTexts: v.extraTexts.map(et => ({ text: et.text, x: et.x, y: et.y, angle: et.angle, useArrow: et.useArrow, ax: et.ax, ay: et.ay })),
-        openings: v.openings.map(op => ({ type: op.type, x: op.x, y: op.y, w: op.w, h: op.h, m: op.m })),
-        customDimOffsets: window.customDimOffsets,
-        hiddenDimTexts: window.hiddenDimTexts,
-        hiddenDimLines: window.hiddenDimLines
+        extraTexts: v.extraTexts.map(et => ({ uid: et.uid, text: et.text, x: et.x, y: et.y, angle: et.angle, useArrow: et.useArrow, ax: et.ax, ay: et.ay })),
+        openings: v.openings.map(op => ({ uid: op.uid, type: op.type, x: op.x, y: op.y, w: op.w, h: op.h, m: op.m })),
+        customDimOffsets: window.customDimOffsets, hiddenDimTexts: window.hiddenDimTexts, hiddenDimLines: window.hiddenDimLines, 
+        customHikiOffsets: window.customHikiOffsets, customOpeningOffsets: window.customOpeningOffsets, 
+        hiddenOpenings: window.hiddenOpenings, hiddenHikites: window.hiddenHikites, hiddenTexts: window.hiddenTexts
     };
 }
 
@@ -320,67 +398,72 @@ function applyProjectData(data) {
             else el.value = data.inputs[key];
         }
     }
-    document.getElementById('slideX').value = data.inputs.offX;
-    document.getElementById('slideY').value = data.inputs.offY;
-    document.getElementById('specContainer').innerHTML = "";
-    if(data.specs) data.specs.forEach(s => addRow(s.label, s.value));
+    document.getElementById('slideX').value = data.inputs.offX || 0; 
+    document.getElementById('slideY').value = data.inputs.offY || 0;
+    if(data.inputs.singleHinge) { const el = document.getElementById('singleHinge'); if(el) el.value = data.inputs.singleHinge; }
+    
+    document.getElementById('specContainer').innerHTML = ""; if(data.specs) data.specs.forEach(s => addRow(s.label, s.value));
     
     document.getElementById('textExtraContainer').innerHTML = "";
-    if(data.extraTexts) {
-        data.extraTexts.forEach(et => {
-            let ang = et.angle !== undefined ? et.angle : (et.isVert ? 90 : 0);
-            addTextRow(et.text, et.x, et.y, ang, et.useArrow, et.ax, et.ay);
-        });
+    if(data.extraTexts) { 
+        data.extraTexts.forEach(et => { 
+            let ang = et.angle !== undefined ? et.angle : (et.isVert ? 90 : 0); 
+            addTextRow(et.text, et.x, et.y, ang, et.useArrow, et.ax, et.ay, et.uid); 
+        }); 
     }
-    document.getElementById('openingContainer').innerHTML = "";
-    if(data.openings) data.openings.forEach(op => addOpeningRow(op.type, op.x, op.y, op.w, op.h, op.m));
     
-    window.customDimOffsets = data.customDimOffsets || {}; 
-    window.hiddenDimTexts = data.hiddenDimTexts || data.hiddenDims || []; 
-    window.hiddenDimLines = data.hiddenDimLines || data.hiddenDims || []; 
+    document.getElementById('openingContainer').innerHTML = "";
+    if(data.openings) data.openings.forEach(op => { addOpeningRow(op.type, op.x, op.y, op.w, op.h, op.m, op.uid); });
+    
+    window.customDimOffsets = data.customDimOffsets || {}; window.hiddenDimTexts = data.hiddenDimTexts || []; 
+    window.hiddenDimLines = data.hiddenDimLines || []; window.customHikiOffsets = data.customHikiOffsets || {}; 
+    window.customOpeningOffsets = data.customOpeningOffsets || {}; window.hiddenOpenings = data.hiddenOpenings || [];
+    window.hiddenHikites = data.hiddenHikites || []; window.hiddenTexts = data.hiddenTexts || [];
     window.eraserHistory = []; 
     drawPreview();
 }
 
 function saveProjectFile() {
-    const data = getProjectData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `建具図_${data.inputs.dwgNoStr}_${data.inputs.pjName}.json`;
-    a.click();
+    try {
+        const data = getProjectData(); 
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(blob); 
+        a.download = `建具図_${data.inputs.dwgNoStr}_${data.inputs.pjName}.json`; 
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    } catch(e) {
+        alert("保存中にエラーが発生しました: " + e.message);
+    }
 }
 
 function loadProjectFile(input) {
-    const file = input.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => applyProjectData(JSON.parse(e.target.result));
-    reader.readAsText(file);
-    input.value = "";
+    const file = input.files[0]; if (!file) return; const reader = new FileReader();
+    reader.onload = (e) => applyProjectData(JSON.parse(e.target.result)); reader.readAsText(file); input.value = "";
 }
 
 function resetToDefault() {
-    window.customDimOffsets = {}; 
-    window.hiddenDimTexts = [];
-    window.hiddenDimLines = [];
-    window.eraserHistory = [];
+    window.customDimOffsets = {}; window.hiddenDimTexts = []; window.hiddenDimLines = []; 
+    window.customHikiOffsets = {}; window.customOpeningOffsets = {}; window.hiddenOpenings = []; 
+    window.hiddenHikites = []; window.hiddenTexts = []; window.eraserHistory = [];
     applyProjectData({
         inputs: {
-            compName: "(株) 崎原工房", pjName: "〇〇邸 新築工事", dwgName: "建具姿図・詳細図", scaleStr: "1/20",
-            dateStr: new Date().toLocaleDateString(), managerStr: "設計部", dwgNoStr: "A-01",
-            w: 786, h: 2320, offX: 0, offY: 0, tsl: 60, tsr: 60, tt: 80, tb: 100, d: 30,
+            compName: "(株) 崎原工房", pjName: "〇〇邸 新築工事", dwgName: "建具姿図・詳細図", scaleStr: "1/20", dateStr: new Date().toLocaleDateString(), managerStr: "設計部", dwgNoStr: "A-01",
+            w: 786, h: 2320, offX: 0, offY: 0, tsl: 60, tsr: 60, tt: 80, tb: 100, d: 30, overlapVal: 60,
             useMid: true, tm: 60, hm: 505, stT: 5, shT: 2, stB: 5, shB: 0,
-            ktv: 15, kth: 15, showHikite: true, hikiH: 100, hikiW: 50, hikiY: 900, hikiSide: "right", hikiX: 30, specNote: "＊現場寸法確認の上製作"
+            ktv: 15, kth: 15, showHikite: true, hikiH: 100, hikiW: 50, hikiY: 900, hikiX: 30, specNote: "＊現場寸法確認の上製作",
+            doorType: "standard", singleHinge: "left", hardwareType: "hikite", 
+            topKoguchi: "樋端しゃくり（溝）", botKoguchi: "V溝（Vレール用）", mabuiShape: "糸面（いとめん）", drawKoguchiShape: true,
+            hk1: "left", hk2: "right", hk3: "right", hk4: "right", hk5: "right",
+            hk1_movable: false, hk2_movable: false, hk3_movable: false, hk4_movable: false, hk5_movable: false
         },
-        specs: [{ label: "本体", value: "人工タモ塗装品" }, { label: "金物", value: "長角引手" }],
-        extraTexts: [],
-        openings: [],
-        customDimOffsets: {}
+        specs: [{ label: "本体", value: "人工タモ塗装品" }, { label: "金物", value: "長角引手" }], extraTexts: [], openings: [], 
+        customDimOffsets: {}, customHikiOffsets: {}, customOpeningOffsets: {}, hiddenOpenings: [], hiddenHikites: [], hiddenTexts: []
     });
 }
 
-// --- UI操作 ---
 function setScale(val) { document.getElementById('scaleStr').value = val; drawPreview(); }
 function syncSlider(axis) { document.getElementById('slide' + axis).value = document.getElementById('off' + axis).value; drawPreview(); }
 function syncInput(axis) { document.getElementById('off' + axis).value = document.getElementById('slide' + axis).value; drawPreview(); }
@@ -388,160 +471,89 @@ function syncInput(axis) { document.getElementById('off' + axis).value = documen
 function addRow(l="", v="") {
     const div = document.createElement('div'); div.className = 'spec-row';
     div.innerHTML = `<input type="text" class="spec-label" value="${l}" oninput="drawPreview()"><input type="text" class="spec-value" value="${v}" oninput="drawPreview()"><button class="btn-del" onclick="removeRow(this)">×</button>`;
-    document.getElementById('specContainer').appendChild(div);
-    drawPreview();
+    document.getElementById('specContainer').appendChild(div); drawPreview();
 }
 
-function addTextRow(txt="", x=0, y=0, angle=0, useA=false, ax=100, ay=100) {
-    if (angle === true) angle = 90; 
-    if (angle === false) angle = 0;
-    
+function addTextRow(txt="", x=0, y=0, angle=0, useA=false, ax=100, ay=100, existingUid=null) {
+    if (angle === true) angle = 90; if (angle === false) angle = 0;
     const div = document.createElement('div'); div.className = 'text-row';
-    div.innerHTML = `
-        <input type="text" class="extra-txt" value="${txt}" placeholder="内容" oninput="drawPreview()">
-        <input type="number" class="extra-x" value="${x}" title="X座標" placeholder="X" oninput="drawPreview()">
-        <input type="number" class="extra-y" value="${y}" title="Y座標" placeholder="Y" oninput="drawPreview()">
-        <button type="button" class="extra-rot" style="padding:4px 0; font-size:10px; background:#ecf0f1; border:1px solid #bdc3c7; border-radius:4px; cursor:pointer;" data-angle="${angle}" onclick="rotateText(this)">${angle}°</button>
-        <input type="checkbox" class="extra-use-arrow" title="矢印" ${useA?'checked':''} onchange="drawPreview()">
-        <input type="number" class="extra-ax" value="${ax}" title="矢印先X" placeholder="矢X" oninput="drawPreview()">
-        <input type="number" class="extra-ay" value="${ay}" title="矢印先Y" placeholder="矢Y" oninput="drawPreview()">
-        <button class="btn-del" onclick="removeRow(this)">×</button>`;
-    document.getElementById('textExtraContainer').appendChild(div);
-    drawPreview();
+    div.dataset.uid = existingUid || 'txt_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+    div.innerHTML = `<input type="text" class="extra-txt" value="${txt}" placeholder="内容" oninput="drawPreview()"><input type="number" class="extra-x" value="${x}" title="X座標" placeholder="X" oninput="drawPreview()"><input type="number" class="extra-y" value="${y}" title="Y座標" placeholder="Y" oninput="drawPreview()"><button type="button" class="extra-rot" style="padding:4px 0; font-size:10px; background:#ecf0f1; border:1px solid #bdc3c7; border-radius:4px; cursor:pointer;" data-angle="${angle}" onclick="rotateText(this)">${angle}°</button><input type="checkbox" class="extra-use-arrow" title="矢印" ${useA?'checked':''} onchange="drawPreview()"><input type="number" class="extra-ax" value="${ax}" title="矢印先X" placeholder="矢X" oninput="drawPreview()"><input type="number" class="extra-ay" value="${ay}" title="矢印先Y" placeholder="矢Y" oninput="drawPreview()"><button class="btn-del" onclick="removeRow(this)">×</button>`;
+    document.getElementById('textExtraContainer').appendChild(div); drawPreview();
 }
 
-function addOpeningRow(type="rect", x=100, y=1500, w=100, h=100, m=30) {
+function addOpeningRow(type="rect", x=100, y=1500, w=100, h=100, m=30, existingUid=null) {
     const div = document.createElement('div'); div.className = 'op-row';
-    div.innerHTML = `
-        <select class="op-type" onchange="drawPreview()">
-            <option value="rect" ${type==='rect'?'selected':''}>四角ガラス</option>
-            <option value="circle" ${type==='circle'?'selected':''}>丸ガラス</option>
-            <option value="louver" ${type==='louver'?'selected':''}>ガラリ</option>
-        </select>
-        <input type="number" class="op-x" value="${x}" title="X座標" placeholder="X" oninput="drawPreview()">
-        <input type="number" class="op-y" value="${y}" title="Y座標" placeholder="Y" oninput="drawPreview()">
-        <input type="number" class="op-w" value="${w}" title="幅" placeholder="W" oninput="drawPreview()">
-        <input type="number" class="op-h" value="${h}" title="高さ" placeholder="H" oninput="drawPreview()">
-        <input type="number" class="op-m" value="${m}" title="枠見付" placeholder="見付" oninput="drawPreview()">
-        <button class="btn-del" onclick="removeRow(this)">×</button>`;
-    document.getElementById('openingContainer').appendChild(div);
-    drawPreview();
+    div.dataset.uid = existingUid || 'op_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+    div.innerHTML = `<select class="op-type" onchange="drawPreview()"><option value="rect" ${type==='rect'?'selected':''}>四角ガラス</option><option value="circle" ${type==='circle'?'selected':''}>丸ガラス</option><option value="louver" ${type==='louver'?'selected':''}>ガラリ</option></select><input type="number" class="op-x" value="${x}" title="X座標" placeholder="X" oninput="drawPreview()"><input type="number" class="op-y" value="${y}" title="Y座標" placeholder="Y" oninput="drawPreview()"><input type="number" class="op-w" value="${w}" title="幅" placeholder="W" oninput="drawPreview()"><input type="number" class="op-h" value="${h}" title="高さ" placeholder="H" oninput="drawPreview()"><input type="number" class="op-m" value="${m}" title="枠見付" placeholder="見付" oninput="drawPreview()"><button class="btn-del" onclick="removeRow(this)">×</button>`;
+    document.getElementById('openingContainer').appendChild(div); drawPreview();
 }
 function removeRow(btn) { btn.parentElement.remove(); drawPreview(); }
 
-const getVal = (id, def) => {
-    const el = document.getElementById(id);
-    if(!el || el.value === "") return def;
-    const num = parseFloat(el.value);
-    return isNaN(num) ? def : num;
-};
+const getVal = (id, def) => { const el = document.getElementById(id); if(!el || el.value === "") return def; const num = parseFloat(el.value); return isNaN(num) ? def : num; };
 
 function getValues() {
     return {
-        compName: document.getElementById('compName').value, pjName: document.getElementById('pjName').value, dwgName: document.getElementById('dwgName').value,
-        scaleStr: document.getElementById('scaleStr').value, dateStr: document.getElementById('dateStr').value, managerStr: document.getElementById('managerStr').value, dwgNoStr: document.getElementById('dwgNoStr').value,
-        W: getVal('w', 786), H: getVal('h', 2320), D: getVal('d', 30), offX: getVal('offX', 0), offY: getVal('offY', 0),
-        TT: getVal('tt', 80), TB: getVal('tb', 100), TSL: getVal('tsl', 60), TSR: getVal('tsr', 60),
-        useMid: document.getElementById('useMid').checked, TM: getVal('tm', 60), HM: getVal('hm', 505),
-        showHikite: document.getElementById('showHikite').checked, hikiH: getVal('hikiH', 100), hikiW: getVal('hikiW', 50), hikiY: getVal('hikiY', 900), hikiX: getVal('hikiX', 30), hikiSide: document.getElementById('hikiSide').value,
+        compName: document.getElementById('compName').value, pjName: document.getElementById('pjName').value, dwgName: document.getElementById('dwgName').value, scaleStr: document.getElementById('scaleStr').value, dateStr: document.getElementById('dateStr').value, managerStr: document.getElementById('managerStr').value, dwgNoStr: document.getElementById('dwgNoStr').value,
+        W: getVal('w', 786), H: getVal('h', 2320), D: getVal('d', 30), offX: getVal('offX', 0), offY: getVal('offY', 0), TT: getVal('tt', 80), TB: getVal('tb', 100), TSL: getVal('tsl', 60), TSR: getVal('tsr', 60), overlapVal: getVal('overlapVal', 60),
+        useMid: document.getElementById('useMid').checked, TM: getVal('tm', 60), HM: getVal('hm', 505), showHikite: document.getElementById('showHikite').checked, 
+        hardwareType: document.getElementById('hardwareType') ? document.getElementById('hardwareType').value : 'hikite',
+        singleHinge: document.getElementById('singleHinge') ? document.getElementById('singleHinge').value : 'left',
+        topKoguchi: document.getElementById('topKoguchi') ? document.getElementById('topKoguchi').value : "---",
+        botKoguchi: document.getElementById('botKoguchi') ? document.getElementById('botKoguchi').value : "---",
+        mabuiShape: document.getElementById('mabuiShape') ? document.getElementById('mabuiShape').value : "---",
+        drawKoguchiShape: document.getElementById('drawKoguchiShape') ? document.getElementById('drawKoguchiShape').checked : true,
+        hikiH: getVal('hikiH', 100), hikiW: getVal('hikiW', 50), hikiY: getVal('hikiY', 900), hikiX: getVal('hikiX', 30), 
+        hk1: document.getElementById('hk1') ? document.getElementById('hk1').value : "left", hk2: document.getElementById('hk2') ? document.getElementById('hk2').value : "right", hk3: document.getElementById('hk3') ? document.getElementById('hk3').value : "right", hk4: document.getElementById('hk4') ? document.getElementById('hk4').value : "right", hk5: document.getElementById('hk5') ? document.getElementById('hk5').value : "right",
         stT: getVal('stT', 5), shT: getVal('shT', 2), stB: getVal('stB', 5), shB: getVal('shB', 0), ktv: getVal('ktv', 15), kth: getVal('kth', 15),
-        specLabels: Array.from(document.querySelectorAll('.spec-label')).map(el => el.value),
-        specValues: Array.from(document.querySelectorAll('.spec-value')).map(el => el.value),
-        specNote: document.getElementById('specNote').value,
-        extraTexts: Array.from(document.querySelectorAll('.text-row')).map(row => ({
-            rowEl: row,
-            text: row.querySelector('.extra-txt').value, 
-            x: parseFloat(row.querySelector('.extra-x').value) || 0, 
-            y: parseFloat(row.querySelector('.extra-y').value) || 0,
-            angle: parseInt(row.querySelector('.extra-rot').dataset.angle) || 0,
-            useArrow: row.querySelector('.extra-use-arrow').checked, 
-            ax: parseFloat(row.querySelector('.extra-ax').value) || 0, 
-            ay: parseFloat(row.querySelector('.extra-ay').value) || 0,
-            elX: row.querySelector('.extra-x'), elY: row.querySelector('.extra-y'), elAX: row.querySelector('.extra-ax'), elAY: row.querySelector('.extra-ay')
-        })),
-        openings: Array.from(document.querySelectorAll('.op-row')).map(row => ({
-            rowEl: row,
-            type: row.querySelector('.op-type').value, 
-            x: parseFloat(row.querySelector('.op-x').value) || 0, y: parseFloat(row.querySelector('.op-y').value) || 0,
-            w: parseFloat(row.querySelector('.op-w').value) || 0, h: parseFloat(row.querySelector('.op-h').value) || 0,
-            m: parseFloat(row.querySelector('.op-m').value) || 0,
-            elX: row.querySelector('.op-x'), elY: row.querySelector('.op-y'), elW: row.querySelector('.op-w'), elH: row.querySelector('.op-h')
-        }))
+        specLabels: Array.from(document.querySelectorAll('.spec-label')).map(el => el.value), specValues: Array.from(document.querySelectorAll('.spec-value')).map(el => el.value), specNote: document.getElementById('specNote').value,
+        extraTexts: Array.from(document.querySelectorAll('.text-row')).map(row => ({ uid: row.dataset.uid, rowEl: row, text: row.querySelector('.extra-txt').value, x: parseFloat(row.querySelector('.extra-x').value) || 0, y: parseFloat(row.querySelector('.extra-y').value) || 0, angle: parseInt(row.querySelector('.extra-rot').dataset.angle) || 0, useArrow: row.querySelector('.extra-use-arrow').checked, ax: parseFloat(row.querySelector('.extra-ax').value) || 0, ay: parseFloat(row.querySelector('.extra-ay').value) || 0, elX: row.querySelector('.extra-x'), elY: row.querySelector('.extra-y'), elAX: row.querySelector('.extra-ax'), elAY: row.querySelector('.extra-ay') })),
+        openings: Array.from(document.querySelectorAll('.op-row')).map(row => ({ uid: row.dataset.uid, type: row.querySelector('.op-type').value, x: parseFloat(row.querySelector('.op-x').value) || 0, y: parseFloat(row.querySelector('.op-y').value) || 0, w: parseFloat(row.querySelector('.op-w').value) || 0, h: parseFloat(row.querySelector('.op-h').value) || 0, m: parseFloat(row.querySelector('.op-m').value) || 0, elX: row.querySelector('.op-x'), elY: row.querySelector('.op-y') }))
     };
 }
 
-// --- 描画エンジン ---
-let ctx = null; let _isDXF = false; let _dxfStr = ""; let _dxfFactor = 1.0; const canvasHeight = 792;
+let ctx = null; let _isDXF = false; let _dxfStr = ""; let _dxfFactor = 1.0; const canvasHeight = 1123; 
 let viewZoom = 1.0; let viewOffsetX = 0; let viewOffsetY = 0;
 let lastOriginX = 0, lastOriginY = 0, lastScale = 1;
 
 function outLine(x1, y1, x2, y2, lw=0.6, color="#000") {
-    if(!_isDXF) {
-        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-    } else {
-        _dxfStr += `  0\r\nLINE\r\n  8\r\n0\r\n 10\r\n${(x1*_dxfFactor).toFixed(2)}\r\n 20\r\n${((canvasHeight-y1)*_dxfFactor).toFixed(2)}\r\n 11\r\n${(x2*_dxfFactor).toFixed(2)}\r\n 21\r\n${((canvasHeight-y2)*_dxfFactor).toFixed(2)}\r\n`;
-    }
+    if(!_isDXF) { ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); } 
+    else { _dxfStr += `  0\r\nLINE\r\n  8\r\n0\r\n 10\r\n${(x1*_dxfFactor).toFixed(2)}\r\n 20\r\n${((canvasHeight-y1)*_dxfFactor).toFixed(2)}\r\n 11\r\n${(x2*_dxfFactor).toFixed(2)}\r\n 21\r\n${((canvasHeight-y2)*_dxfFactor).toFixed(2)}\r\n`; }
 }
-function outRect(x, y, w, h, lw=1.0, color="#000") {
-    outLine(x, y, x+w, y, lw, color); outLine(x+w, y, x+w, y+h, lw, color); outLine(x+w, y+h, x, y+h, lw, color); outLine(x, y+h, x, y, lw, color);
-}
+function outRect(x, y, w, h, lw=1.0, color="#000") { outLine(x, y, x+w, y, lw, color); outLine(x+w, y, x+w, y+h, lw, color); outLine(x+w, y+h, x, y+h, lw, color); outLine(x, y+h, x, y, lw, color); }
 function outCircle(cx, cy, r, lw=1.0, color="#000", isFill=false) {
-    if(!_isDXF) {
-        ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.arc(cx, cy, r, 0, Math.PI * 2); 
-        if(isFill) { ctx.fillStyle = color; ctx.fill(); } else { ctx.stroke(); }
-    } else {
-        _dxfStr += `  0\r\nCIRCLE\r\n  8\r\n0\r\n 10\r\n${(cx*_dxfFactor).toFixed(2)}\r\n 20\r\n${((canvasHeight-cy)*_dxfFactor).toFixed(2)}\r\n 40\r\n${(r*_dxfFactor).toFixed(2)}\r\n`;
-    }
+    if(!_isDXF) { ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.arc(cx, cy, r, 0, Math.PI * 2); if(isFill) { ctx.fillStyle = color; ctx.fill(); } else { ctx.stroke(); } } 
+    else { _dxfStr += `  0\r\nCIRCLE\r\n  8\r\n0\r\n 10\r\n${(cx*_dxfFactor).toFixed(2)}\r\n 20\r\n${((canvasHeight-cy)*_dxfFactor).toFixed(2)}\r\n 40\r\n${(r*_dxfFactor).toFixed(2)}\r\n`; }
 }
 function outText(txt, cx, cy, size, angle=0, color="#000", align="center") {
     let rot = (typeof angle === 'boolean') ? (angle ? 90 : 0) : angle;
-    
     if(!_isDXF) {
         ctx.fillStyle = color; ctx.font = `bold ${size}px sans-serif`; ctx.textAlign = align; ctx.textBaseline = "middle";
-        if(rot !== 0) { ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot * Math.PI / 180); ctx.fillText(txt, 0, 0); ctx.restore(); }
-        else ctx.fillText(txt, cx, cy);
+        if(rot !== 0) { ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot * Math.PI / 180); ctx.fillText(txt, 0, 0); ctx.restore(); } else ctx.fillText(txt, cx, cy);
     } else {
-        const dxfX = (cx * _dxfFactor).toFixed(2);
-        const dxfY = ((canvasHeight - cy) * _dxfFactor).toFixed(2);
-        const dxfS = (size * _dxfFactor).toFixed(2);
-        let alignCode = (align === "left") ? 0 : (align === "right" ? 2 : 1);
-        let dxfRot = (360 - rot) % 360; 
+        const dxfX = (cx * _dxfFactor).toFixed(2); const dxfY = ((canvasHeight - cy) * _dxfFactor).toFixed(2); const dxfS = (size * _dxfFactor).toFixed(2);
+        let alignCode = (align === "left") ? 0 : (align === "right" ? 2 : 1); let dxfRot = (360 - rot) % 360; 
         _dxfStr += `  0\r\nTEXT\r\n  8\r\n0\r\n 10\r\n${dxfX}\r\n 20\r\n${dxfY}\r\n 40\r\n${dxfS}\r\n  1\r\n${txt}\r\n 50\r\n${dxfRot}\r\n 72\r\n${alignCode}\r\n 11\r\n${dxfX}\r\n 21\r\n${dxfY}\r\n 73\r\n2\r\n`;
     }
 }
 
-// 共通：丸天寸法線描画 (独立消しゴム対応)
 function drawDim(scale, originX, originY, x1_mm, y1_mm, x2_mm, y2_mm, offset_mm, text, isVert = false, dimId = null) {
     const hideText = dimId && window.hiddenDimTexts && window.hiddenDimTexts.includes(dimId);
     const hideLine = dimId && window.hiddenDimLines && window.hiddenDimLines.includes(dimId);
-    
     if (hideText && hideLine) return; 
 
     let custDx = 0, custDy = 0;
-    if (dimId && window.customDimOffsets[dimId]) {
-        custDx = window.customDimOffsets[dimId].x;
-        custDy = window.customDimOffsets[dimId].y;
-    }
+    if (dimId && window.customDimOffsets[dimId]) { custDx = window.customDimOffsets[dimId].x; custDy = window.customDimOffsets[dimId].y; }
 
-    const orig_x1 = originX + x1_mm * scale;
-    const orig_y1 = originY - y1_mm * scale;
-    const orig_x2 = originX + x2_mm * scale;
-    const orig_y2 = originY - y2_mm * scale;
-
-    const gap = 6, ext = 5; const dotR = 1.25;
-    const textOffset = 10; const dir = Math.sign(offset_mm) || 1;
+    const orig_x1 = originX + x1_mm * scale; const orig_y1 = originY - y1_mm * scale;
+    const orig_x2 = originX + x2_mm * scale; const orig_y2 = originY - y2_mm * scale;
+    const gap = 6, ext = 5; const dotR = 1.25; const textOffset = 10; const dir = Math.sign(offset_mm) || 1;
 
     if(!isVert) {
-        custDx = 0; 
-        const ay = orig_y1 - offset_mm * scale + custDy; 
-        const minX = Math.min(orig_x1, orig_x2), maxX = Math.max(orig_x1, orig_x2);
-        
+        custDx = 0; const ay = orig_y1 - offset_mm * scale + custDy; const minX = Math.min(orig_x1, orig_x2), maxX = Math.max(orig_x1, orig_x2);
         if (!hideLine) {
-            outLine(orig_x1, orig_y1 - gap * dir, orig_x1, ay - ext * dir, 0.4); 
-            outLine(orig_x2, orig_y2 - gap * dir, orig_x2, ay - ext * dir, 0.4);
-            outLine(minX, ay, maxX, ay, 0.4); 
-            outCircle(orig_x1, ay, dotR, 1, "#000", true); outCircle(orig_x2, ay, dotR, 1, "#000", true);
-            
+            outLine(orig_x1, orig_y1 - gap * dir, orig_x1, ay - ext * dir, 0.4); outLine(orig_x2, orig_y2 - gap * dir, orig_x2, ay - ext * dir, 0.4);
+            outLine(minX, ay, maxX, ay, 0.4); outCircle(orig_x1, ay, dotR, 1, "#000", true); outCircle(orig_x2, ay, dotR, 1, "#000", true);
             if(!_isDXF && dimId) window.clickableDims.push({ id: dimId, type: 'line', isVert: false, x1: minX, x2: maxX, y: ay });
         }
         if (!hideText) {
@@ -549,16 +561,10 @@ function drawDim(scale, originX, originY, x1_mm, y1_mm, x2_mm, y2_mm, offset_mm,
             if(!_isDXF && dimId) window.clickableDims.push({ id: dimId, type: 'text', cx: (minX + maxX) / 2, cy: ay - textOffset * dir, isVert: false });
         }
     } else {
-        custDy = 0; 
-        const ax = orig_x1 - offset_mm * scale + custDx; 
-        const yBot = Math.max(orig_y1, orig_y2), yTop = Math.min(orig_y1, orig_y2);
-        
+        custDy = 0; const ax = orig_x1 - offset_mm * scale + custDx; const yBot = Math.max(orig_y1, orig_y2), yTop = Math.min(orig_y1, orig_y2);
         if (!hideLine) {
-            outLine(orig_x1 - gap * dir, orig_y1, ax - ext * dir, orig_y1, 0.4); 
-            outLine(orig_x2 - gap * dir, orig_y2, ax - ext * dir, orig_y2, 0.4);
-            outLine(ax, yBot, ax, yTop, 0.4); 
-            outCircle(ax, orig_y1, dotR, 1, "#000", true); outCircle(ax, orig_y2, dotR, 1, "#000", true);
-            
+            outLine(orig_x1 - gap * dir, orig_y1, ax - ext * dir, orig_y1, 0.4); outLine(orig_x2 - gap * dir, orig_y2, ax - ext * dir, orig_y2, 0.4);
+            outLine(ax, yBot, ax, yTop, 0.4); outCircle(ax, orig_y1, dotR, 1, "#000", true); outCircle(ax, orig_y2, dotR, 1, "#000", true);
             if(!_isDXF && dimId) window.clickableDims.push({ id: dimId, type: 'line', isVert: true, x: ax, y1: yTop, y2: yBot });
         }
         if (!hideText) {
@@ -569,131 +575,285 @@ function drawDim(scale, originX, originY, x1_mm, y1_mm, x2_mm, y2_mm, offset_mm,
 }
 
 function generateDrawing() {
-    window.clickableDims = []; 
+    window.clickableDims = []; window.clickableHikites = []; window.clickableOpenings = [];
+    window.customHikiOffsets = window.customHikiOffsets || {}; window.customOpeningOffsets = window.customOpeningOffsets || {};
+    
     const canvas = document.getElementById('previewCanvas'); const w = canvas.width, h = canvas.height;
     if(!_isDXF) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h); ctx.translate(viewOffsetX, viewOffsetY); ctx.scale(viewZoom, viewZoom); }
     const v = getValues();
-    if(!_isDXF) localStorage.setItem(STORAGE_KEY, JSON.stringify(getProjectData()));
+    
+    scheduleSave();
 
     let S_den = 20; let match = v.scaleStr.match(/(\d+)\s*[\/:]\s*(\d+)/); if(match) S_den = parseFloat(match[2]) / parseFloat(match[1]);
-    let scale = 1080 / (405 * S_den); 
-    _dxfFactor = _isDXF ? 0.375 : 1.0; 
+    let pixelsPerMm = 3.779527; 
+    let scale = _isDXF ? 1.0 : (pixelsPerMm / S_den); 
+    _dxfFactor = _isDXF ? (1 / scale) : 1.0; 
     lastScale = scale;
     
-    const fCX = 350 + (v.offX * scale), fCY = 396 + (v.offY * scale);
-    const oX = fCX - ((v.W + 630 + v.D) * scale) / 2, oY = fCY + ((v.H + 1030 + v.D) * scale) / 2 - 20; 
+    const doorType = document.getElementById('doorType') ? document.getElementById('doorType').value : 'standard';
+    let originalW = v.W; let leafW = originalW; let doorCount = 1; let stepX = originalW;
+    const overlap = v.overlapVal || 60; 
+
+    if (doorType === 'double') { doorCount = 2; leafW = originalW / 2; stepX = leafW;
+    } else if (doorType === 'hikichigai2') { doorCount = 2; leafW = (originalW + overlap) / 2; stepX = leafW - overlap;
+    } else if (doorType === 'hikichigai3') { doorCount = 3; leafW = (originalW + overlap * 2) / 3; stepX = leafW - overlap;
+    } else if (doorType === 'hikichigai4') { doorCount = 4; leafW = (originalW + overlap * 3) / 4; stepX = leafW - overlap;
+    } else if (doorType === 'hikichigai5') { doorCount = 5; leafW = (originalW + overlap * 4) / 5; stepX = leafW - overlap; 
+    } else { doorCount = 1; leafW = originalW; stepX = originalW; }
+
+    const fCX = (w / 2) - 50 + (v.offX * scale), fCY = (h / 2) - 20 + (v.offY * scale);
+    const oX = fCX - ((originalW + 630 + v.D) * scale) / 2, oY = fCY + ((v.H + 1030 + v.D) * scale) / 2 - 20; 
     lastOriginX = oX; lastOriginY = oY;
 
-    const line = (x1, y1, x2, y2, lw=0.6) => { outLine(oX+x1*scale, oY-y1*scale, oX+x2*scale, oY-y2*scale, lw); };
-
-    outRect(20, 20, w - 40, h - 40, 1.0); const ty = h - 65; outLine(20, ty, w - 20, ty, 1.0);
-    outLine(240, ty, 240, h - 20, 1.0); outLine(560, ty, 560, h - 20, 1.0); outLine(760, ty, 760, h - 20, 1.0);
-    outLine(820, ty, 820, h - 20, 1.0); outLine(930, ty, 930, h - 20, 1.0); outLine(1015, ty, 1015, h - 20, 1.0); 
-
-    const midY = ty + 22.5; outText(v.compName, 20+110, midY, 14); outText(v.pjName, 255, midY, 12, 0, "#000", "left"); outText(v.dwgName, 575, midY, 12, 0, "#000", "left");
-    outText(v.scaleStr, 790, midY, 11); outText(v.dateStr, 835, midY, 11, 0, "#000", "left"); outText(v.managerStr, 972, midY, 11); outText(v.dwgNoStr, 1050, midY, 12);
+    const borderOffset = 25; 
+    outRect(borderOffset, borderOffset, w - borderOffset*2, h - borderOffset*2, 1.0); 
+    const ty = h - borderOffset - 45; 
+    outLine(borderOffset, ty, w - borderOffset, ty, 1.0);
     
-    line(0,0,v.W,0,1); line(0,v.H,v.W,v.H,1); line(0,0,0,v.H,1); line(v.W,0,v.W,v.H,1);
-    line(v.TSL,0,v.TSL,v.H,0.6); line(v.W-v.TSR,0,v.W-v.TSR,v.H,0.6);
-    line(v.TSL,v.TB,v.W-v.TSR,v.TB,0.6); line(v.TSL,v.H-v.TT,v.W-v.TSR,v.H-v.TT,0.6);
-    if(v.useMid){ line(v.TSL, v.HM-v.TM/2, v.W-v.TSR, v.HM-v.TM/2, 0.6); line(v.TSL, v.HM+v.TM/2, v.W-v.TSR, v.HM+v.TM/2, 0.6); }
+    const rX = w - borderOffset;
+    outLine(rX - 860, ty, rX - 860, h - borderOffset, 1.0); outLine(rX - 540, ty, rX - 540, h - borderOffset, 1.0);
+    outLine(rX - 340, ty, rX - 340, h - borderOffset, 1.0); outLine(rX - 280, ty, rX - 280, h - borderOffset, 1.0);
+    outLine(rX - 170, ty, rX - 170, h - borderOffset, 1.0); outLine(rX - 85, ty, rX - 85, h - borderOffset, 1.0); 
 
-    const drawK = (yL, yH, nV, nH, ktv, kth) => {
-        if(yH <= yL) return;
-        const xG = (v.W - v.TSL - v.TSR) / (nV + 1);
-        const yG = (yH - yL) / (nH + 1);
+    const midY = ty + 22.5; 
+    outText(v.compName, borderOffset + 110, midY, 14); 
+    outText(v.pjName, rX - 845, midY, 12, 0, "#000", "left"); 
+    outText(v.dwgName, rX - 525, midY, 12, 0, "#000", "left");
+    outText(v.scaleStr, rX - 310, midY, 11); 
+    outText(v.dateStr, rX - 265, midY, 11, 0, "#000", "left"); 
+    outText(v.managerStr, rX - 127, midY, 11); 
+    outText(v.dwgNoStr, rX - 42, midY, 12);
 
-        for(let i=1; i<=nV; i++){ 
-            let cx = v.TSL + xG*i; 
-            line(cx-ktv/2, yL, cx-ktv/2, yH, 0.6); 
-            line(cx+ktv/2, yL, cx+ktv/2, yH, 0.6); 
-            if(i==1) outText(Math.round(ktv).toString(), oX + cx*scale, oY - (yH - 30)*scale, 11, 0, "#000");
+    const drawLeaf = (dX, isFirst, isLast, leafIndex) => {
+        const lX = oX + dX * scale; const lY = oY;
+        const line = (x1, y1, x2, y2, lw=0.6) => { outLine(lX+x1*scale, lY-y1*scale, lX+x2*scale, lY-y2*scale, lw); };
+        
+        const drawKisekiLine = (x1, y1, x2, y2) => {
+            if(!_isDXF) {
+                ctx.beginPath(); ctx.strokeStyle = "#000"; ctx.lineWidth = 0.4; ctx.setLineDash([8, 8]);
+                ctx.moveTo(lX + x1*scale, lY - y1*scale); ctx.lineTo(lX + x2*scale, lY - y2*scale);
+                ctx.stroke(); ctx.setLineDash([]);
+            } else {
+                const segs = Math.max(10, Math.floor(Math.hypot(x2-x1, y2-y1) / 50) * 2);
+                for(let i=0; i<segs; i+=2) {
+                    let px1 = x1 + (x2 - x1) * (i/segs); let py1 = y1 + (y2 - y1) * (i/segs);
+                    let px2 = x1 + (x2 - x1) * ((i+1)/segs); let py2 = y1 + (y2 - y1) * ((i+1)/segs);
+                    line(px1, py1, px2, py2, 0.4);
+                }
+            }
+        };
+
+        const drawDashedArc = (cx, cy, r, startAng, endAng, ccw) => {
+            if(!_isDXF) {
+                ctx.beginPath(); ctx.strokeStyle = "#000"; ctx.lineWidth = 0.6; ctx.setLineDash([8, 8]);
+                ctx.ellipse(lX + cx*scale, lY - cy*scale, Math.abs(r*scale), Math.abs(r*scale * 0.75), 0, startAng, endAng, ccw);
+                ctx.stroke(); ctx.setLineDash([]);
+            } else {
+                const segs = 16;
+                for(let i=0; i<segs; i+=2) {
+                    let t1 = startAng + (endAng - startAng) * (i/segs);
+                    let t2 = startAng + (endAng - startAng) * ((i+1)/segs);
+                    line(cx + r*Math.cos(t1), cy - r*0.75*Math.sin(t1), cx + r*Math.cos(t2), cy - r*0.75*Math.sin(t2), 0.4);
+                }
+            }
+        };
+
+        line(0,0,leafW,0,1); line(0,v.H,leafW,v.H,1); line(0,0,0,v.H,1); line(leafW,0,leafW,v.H,1);
+        line(v.TSL,0,v.TSL,v.H,0.6); line(leafW-v.TSR,0,leafW-v.TSR,v.H,0.6);
+        line(v.TSL,v.TB,leafW-v.TSR,v.TB,0.6); line(v.TSL,v.H-v.TT,leafW-v.TSR,v.H-v.TT,0.6);
+        if(v.useMid){ line(v.TSL, v.HM-v.TM/2, leafW-v.TSR, v.HM-v.TM/2, 0.6); line(v.TSL, v.HM+v.TM/2, leafW-v.TSR, v.HM+v.TM/2, 0.6); }
+
+        if (doorType === 'single') {
+            if (v.singleHinge === 'right') {
+                drawKisekiLine(0, 0, leafW, v.H/2);
+                drawKisekiLine(0, v.H, leafW, v.H/2);
+            } else {
+                drawKisekiLine(leafW, 0, 0, v.H/2);
+                drawKisekiLine(leafW, v.H, 0, v.H/2);
+            }
+        } else if (doorType === 'double') {
+            if (leafIndex === 0) {
+                drawKisekiLine(leafW, 0, 0, v.H/2);
+                drawKisekiLine(leafW, v.H, 0, v.H/2);
+            } else {
+                drawKisekiLine(0, 0, leafW, v.H/2);
+                drawKisekiLine(0, v.H, leafW, v.H/2);
+            }
         }
 
-        if(nH > 0) { 
-            for(let j=1; j<=nH; j++){ 
-                let y = yL+yG*j; 
-                let startX = v.TSL;
-                for(let i=1; i<=nV; i++) {
-                    let cx = v.TSL + xG*i;
-                    line(startX, y-kth/2, cx-ktv/2, y-kth/2, 0.3); 
-                    line(startX, y+kth/2, cx-ktv/2, y+kth/2, 0.3);
-                    startX = cx+ktv/2;
+        const drawK = (yL, yH, nV, nH, ktv, kth) => {
+            if(yH <= yL) return;
+            const xG = (leafW - v.TSL - v.TSR) / (nV + 1); const yG = (yH - yL) / (nH + 1);
+            for(let i=1; i<=nV; i++){ 
+                let cx = v.TSL + xG*i; line(cx-ktv/2, yL, cx-ktv/2, yH, 0.6); line(cx+ktv/2, yL, cx+ktv/2, yH, 0.6); 
+                if(i==1 && isFirst) outText(Math.round(ktv).toString(), lX + cx*scale, lY - (yH - 30)*scale, 11, 0, "#000");
+            }
+            if(nH > 0) { 
+                for(let j=1; j<=nH; j++){ 
+                    let y = yL+yG*j; let startX = v.TSL;
+                    for(let i=1; i<=nV; i++) {
+                        let cx = v.TSL + xG*i; line(startX, y-kth/2, cx-ktv/2, y-kth/2, 0.3); line(startX, y+kth/2, cx-ktv/2, y+kth/2, 0.3); startX = cx+ktv/2;
+                    }
+                    line(startX, y-kth/2, leafW-v.TSR, y-kth/2, 0.3); line(startX, y+kth/2, leafW-v.TSR, y+kth/2, 0.3);
+                    if(j==1 && isFirst) outText(Math.round(kth).toString(), lX + (v.TSL + 25)*scale, lY - y*scale, 11, 90, "#000"); 
+                } 
+            }
+        };
+        if(v.useMid){ drawK(v.HM+v.TM/2, v.H-v.TT, v.stT, v.shT, v.ktv, v.kth); drawK(v.TB, v.HM-v.TM/2, v.stB, v.shB, v.ktv, v.kth); }
+        else drawK(v.TB, v.H-v.TT, v.stT, v.shT, v.ktv, v.kth);
+
+        if(v.showHikite){
+            const hkSettings = [v.hk1, v.hk2, v.hk3, v.hk4, v.hk5];
+            let currentHk = hkSettings[leafIndex] || "right";
+            
+            const drawHikiteRect = (side) => {
+                const hkId = "hk_" + leafIndex + "_" + side;
+                if (window.hiddenHikites && window.hiddenHikites.includes(hkId)) return;
+
+                let offX = 0, offY = 0;
+                if(window.customHikiOffsets && window.customHikiOffsets[hkId]) {
+                    offX = window.customHikiOffsets[hkId].x / scale; offY = -window.customHikiOffsets[hkId].y / scale;
                 }
-                line(startX, y-kth/2, v.W-v.TSR, y-kth/2, 0.3);
-                line(startX, y+kth/2, v.W-v.TSR, y+kth/2, 0.3);
-                if(j==1) outText(Math.round(kth).toString(), oX + (v.TSL + 25)*scale, oY - y*scale, 11, 90, "#000"); 
-            } 
+
+                if (v.hardwareType === 'lever') {
+                    let hx = (side === "left") ? v.hikiX : leafW - v.hikiX;
+                    let hy = v.hikiY;
+
+                    const baseX = lX + (hx + offX) * scale; const baseY = lY - (hy + offY) * scale;
+                    const r = (v.hikiW / 2) * scale; const leverLen = v.hikiH * scale; 
+                    const leverThick = (v.hikiW * 0.4) * scale; const leverRadius = leverThick / 2;
+                    
+                    outCircle(baseX, baseY, Math.abs(r), 1.0, "#c0392b"); 
+                    if (side === "left") {
+                        outRect(baseX, baseY - leverRadius, leverLen, leverThick, 1.0, "#c0392b");
+                        outCircle(baseX + leverLen, baseY, Math.abs(leverRadius), 1.0, "#c0392b", true); 
+                    } else {
+                        outRect(baseX - leverLen, baseY - leverRadius, leverLen, leverThick, 1.0, "#c0392b");
+                        outCircle(baseX - leverLen, baseY, Math.abs(leverRadius), 1.0, "#c0392b", true); 
+                    }
+                    
+                    let rectX = (side === "left") ? baseX - r : baseX - leverLen - leverRadius;
+                    let rectW = r + leverLen + leverRadius; let rectY = baseY - Math.max(r, leverRadius); let rectH = Math.max(r, leverRadius) * 2;
+                    
+                    if(isFirst) drawDim(scale, oX, oY, dX + hx + offX, hy + offY, dX + hx + offX, 0, -260, Math.round(hy + offY), true, "dim_hiki_y_" + hkId); 
+                    if(!_isDXF) window.clickableHikites.push({ id: hkId, leafNum: leafIndex + 1, rectX: rectX, rectY: rectY, rectW: rectW, rectH: rectH });
+
+                } else {
+                    let hx = (side === "left") ? v.hikiX : leafW - v.hikiX - v.hikiW;
+                    let hy = v.hikiY;
+
+                    const finalX = lX + (hx + offX) * scale; const finalY = lY - (hy + v.hikiH/2 + offY) * scale;
+                    const rectW = v.hikiW * scale; const rectH = v.hikiH * scale;
+                    
+                    outRect(finalX, finalY, rectW, rectH, 1.0, "#c0392b");
+                    if(isFirst) drawDim(scale, oX, oY, dX + hx + offX, hy + offY, dX + hx + offX, 0, -260, Math.round(hy + offY), true, "dim_hiki_y_" + hkId); 
+
+                    if(!_isDXF) window.clickableHikites.push({ id: hkId, leafNum: leafIndex + 1, rectX: finalX, rectY: finalY, rectW: rectW, rectH: rectH });
+                }
+            };
+            if (currentHk === "left") drawHikiteRect("left");
+            else if (currentHk === "right") drawHikiteRect("right");
+            else if (currentHk === "both") { drawHikiteRect("left"); drawHikiteRect("right"); }
+        }
+
+        v.openings.forEach((op, idx) => {
+            const opId = op.uid + "_" + leafIndex; 
+            if (window.hiddenOpenings && window.hiddenOpenings.includes(opId)) return; 
+            
+            let offX = 0, offY = 0;
+            if (window.customOpeningOffsets && window.customOpeningOffsets[opId]) {
+                offX = window.customOpeningOffsets[opId].x / scale; offY = -window.customOpeningOffsets[opId].y / scale;
+            }
+
+            const opx = op.x + offX; const opy = op.y + offY;
+            const ox = lX + opx * scale, oy = lY - opy * scale, ow = op.w * scale, oh = op.h * scale; const m = op.m * scale; 
+            
+            if(!_isDXF) window.clickableOpenings.push({ id: opId, op: op, leafIndex: leafIndex, rectX: ox, rectY: oy - oh, rectW: ow, rectH: oh });
+
+            if (op.type === 'rect') {
+                outRect(ox, oy - oh, ow, oh, 1.0); 
+                if(m > 0 && ow > 2*m && oh > 2*m) {
+                    outRect(ox + m, oy - oh + m, ow - 2*m, oh - 2*m, 0.6); 
+                    outLine(ox, oy - oh, ox + m, oy - oh + m, 0.4); outLine(ox + ow, oy - oh, ox + ow - m, oy - oh + m, 0.4); 
+                    outLine(ox, oy, ox + m, oy - m, 0.4); outLine(ox + ow, oy, ox + ow - m, oy - m, 0.4); 
+                }
+            } else if (op.type === 'circle') {
+                outCircle(ox + ow/2, oy - ow/2, Math.abs(ow/2), 1.0); 
+                if(m > 0 && ow > 2*m) outCircle(ox + ow/2, oy - ow/2, Math.abs(ow/2 - m), 0.6); 
+            } else if (op.type === 'louver') {
+                outRect(ox, oy - oh, ow, oh, 1.0); 
+                if(m > 0 && ow > 2*m && oh > 2*m) {
+                    outRect(ox + m, oy - oh + m, ow - 2*m, oh - 2*m, 0.6); 
+                    outLine(ox, oy - oh, ox + m, oy - oh + m, 0.4); outLine(ox + ow, oy - oh, ox + ow - m, oy - oh + m, 0.4); 
+                    outLine(ox, oy, ox + m, oy - m, 0.4); outLine(ox + ow, oy, ox + ow - m, oy - m, 0.4); 
+                    for(let ly = op.m + 20; ly < op.h - op.m; ly += 20) outLine(ox + m, oy - ly * scale, ox + ow - m, oy - (ly - 5) * scale, 0.4); 
+                } else {
+                    for(let ly = 20; ly < op.h; ly += 20) outLine(ox, oy - ly * scale, ox + ow, oy - (ly - 5) * scale, 0.4); 
+                }
+            }
+            if(isFirst) {
+                if (op.type === 'louver') {
+                    const rightEdge = originalW;
+                    const opRight = opx + op.w;
+                    const opTop = opy + op.h;
+                    const opVertOffset = opRight + 60; 
+                    
+                    drawDim(scale, lX, lY, opRight, opy, opRight, 0, opVertOffset, Math.round(opy), true, `op_${op.uid}_v_bot_new`);
+                    drawDim(scale, lX, lY, opRight, opTop, opRight, opy, opVertOffset, Math.round(op.h), true, `op_${op.uid}_v_h_new`);
+                    
+                    drawDim(scale, lX, lY, rightEdge, opTop, opRight, opTop, 80, Math.round(rightEdge - opRight), false, `op_${op.uid}_h_r_new`);
+                    drawDim(scale, lX, lY, opRight, opTop, opx, opTop, 80, Math.round(op.w), false, `op_${op.uid}_h_w_new`);
+                } else {
+                    const opVertOffset = op.x + offX + 120;
+                    drawDim(scale, lX, lY, opx, v.H, opx, opy + op.h, opVertOffset, Math.round(v.H - (opy + op.h)), true, `op_${op.uid}_v_top`);
+                    drawDim(scale, lX, lY, opx, opy + op.h, opx, opy, opVertOffset, Math.round(op.h), true, `op_${op.uid}_v_h`);
+                    drawDim(scale, lX, lY, 0, opy + op.h, opx, opy + op.h, 80, Math.round(opx), false, `op_${op.uid}_h_l`);
+                    drawDim(scale, lX, lY, opx, opy + op.h, opx + op.w, opy + op.h, 80, Math.round(op.w), false, `op_${op.uid}_h_w`);
+                }
+            }
+        });
+
+        const py = v.H + 1000;
+        let shiftY = (doorType.includes('hikichigai') && leafIndex > 0) ? leafIndex * (v.D + 2) : 0;
+        const pY_shifted = py - shiftY;
+        
+        line(0, pY_shifted, leafW, pY_shifted, 1); line(0, pY_shifted+v.D, leafW, pY_shifted+v.D, 1); 
+        line(0, pY_shifted, 0, pY_shifted+v.D, 1); line(leafW, pY_shifted, leafW, pY_shifted+v.D, 1);
+        line(v.TSL, pY_shifted, v.TSL, pY_shifted+v.D, 0.6); line(leafW-v.TSR, pY_shifted, leafW-v.TSR, pY_shifted+v.D, 0.6); 
+        
+        if (doorType === 'single') {
+            if (v.singleHinge === 'right') {
+                line(leafW, py, leafW, py + leafW * 0.75, 0.4); 
+                drawDashedArc(leafW, py, leafW, -Math.PI, -Math.PI/2, false);
+            } else {
+                line(0, py, 0, py + leafW * 0.75, 0.4); 
+                drawDashedArc(0, py, leafW, 0, -Math.PI/2, true);
+            }
+        } else if (doorType === 'double') {
+            const angle = Math.PI / 4; 
+            const cosA = Math.cos(angle); const sinA = Math.sin(angle);
+            if (leafIndex === 0) {
+                line(0, py, leafW * cosA, py + leafW * 0.75 * sinA, 0.4); 
+                drawDashedArc(0, py, leafW, 0, -angle, true);
+            } else {
+                line(leafW, py, leafW - leafW * cosA, py + leafW * 0.75 * sinA, 0.4); 
+                drawDashedArc(leafW, py, leafW, -Math.PI, -Math.PI + angle, false);
+            }
+        }
+        
+        if (doorType.includes('hikichigai') && leafIndex > 0) {
+            const lapX1 = leafIndex * stepX; const lapX2 = lapX1 + overlap; 
+            drawDim(scale, oX, oY, lapX1, py, lapX2, py, -220, Math.round(overlap), false, "dim_overlap_" + leafIndex);
         }
     };
-    if(v.useMid){ drawK(v.HM+v.TM/2, v.H-v.TT, v.stT, v.shT, v.ktv, v.kth); drawK(v.TB, v.HM-v.TM/2, v.stB, v.shB, v.ktv, v.kth); }
-    else drawK(v.TB, v.H-v.TT, v.stT, v.shT, v.ktv, v.kth);
 
-    if(v.showHikite){
-        let hx = (v.hikiSide === "left") ? v.hikiX : v.W - v.hikiX - v.hikiW;
-        outRect(oX + hx*scale, oY - (v.hikiY + v.hikiH/2)*scale, v.hikiW*scale, v.hikiH*scale, 1.0, "#c0392b");
-        drawDim(scale, oX, oY, hx, v.hikiY, hx, 0, -260, Math.round(v.hikiY), true, "dim_hiki_y"); 
-    }
-
-    v.openings.forEach((op, idx) => {
-        const ox = oX + op.x * scale, oy = oY - op.y * scale, ow = op.w * scale, oh = op.h * scale;
-        const m = op.m * scale; 
-        
-        if (op.type === 'rect') {
-            outRect(ox, oy - oh, ow, oh, 1.0); 
-            if(m > 0 && ow > 2*m && oh > 2*m) {
-                outRect(ox + m, oy - oh + m, ow - 2*m, oh - 2*m, 0.6); 
-                outLine(ox, oy - oh, ox + m, oy - oh + m, 0.4); 
-                outLine(ox + ow, oy - oh, ox + ow - m, oy - oh + m, 0.4); 
-                outLine(ox, oy, ox + m, oy - m, 0.4); 
-                outLine(ox + ow, oy, ox + ow - m, oy - m, 0.4); 
-            }
-        } 
-        else if (op.type === 'circle') {
-            outCircle(ox + ow/2, oy - ow/2, ow/2, 1.0); 
-            if(m > 0 && ow > 2*m) {
-                outCircle(ox + ow/2, oy - ow/2, ow/2 - m, 0.6); 
-            }
-        } 
-        else if (op.type === 'louver') {
-            outRect(ox, oy - oh, ow, oh, 1.0); 
-            if(m > 0 && ow > 2*m && oh > 2*m) {
-                outRect(ox + m, oy - oh + m, ow - 2*m, oh - 2*m, 0.6); 
-                outLine(ox, oy - oh, ox + m, oy - oh + m, 0.4); 
-                outLine(ox + ow, oy - oh, ox + ow - m, oy - oh + m, 0.4); 
-                outLine(ox, oy, ox + m, oy - m, 0.4); 
-                outLine(ox + ow, oy, ox + ow - m, oy - m, 0.4); 
-                
-                for(let ly = op.m + 20; ly < op.h - op.m; ly += 20) { 
-                    outLine(ox + m, oy - ly * scale, ox + ow - m, oy - (ly - 5) * scale, 0.4); 
-                }
-            } else {
-                for(let ly = 20; ly < op.h; ly += 20) { 
-                    outLine(ox, oy - ly * scale, ox + ow, oy - (ly - 5) * scale, 0.4); 
-                }
-            }
-        }
-        
-        const opVertOffset = op.x + 120; 
-
-        if (op.type === 'louver') {
-            drawDim(scale, oX, oY, op.x, op.y, op.x, 0, opVertOffset, Math.round(op.y), true, `op_${idx}_l_bot`);
-            drawDim(scale, oX, oY, op.x, op.y + op.h, op.x, op.y, opVertOffset, Math.round(op.h), true, `op_${idx}_l_h`);
-        } else {
-            drawDim(scale, oX, oY, op.x, v.H, op.x, op.y + op.h, opVertOffset, Math.round(v.H - (op.y + op.h)), true, `op_${idx}_v_top`);
-            drawDim(scale, oX, oY, op.x, op.y + op.h, op.x, op.y, opVertOffset, Math.round(op.h), true, `op_${idx}_v_h`);
-        }
-
-        drawDim(scale, oX, oY, 0, op.y + op.h, op.x, op.y + op.h, 80, Math.round(op.x), false, `op_${idx}_h_l`);
-        drawDim(scale, oX, oY, op.x, op.y + op.h, op.x + op.w, op.y + op.h, 80, Math.round(op.w), false, `op_${idx}_h_w`);
-    });
+    for (let d = 0; d < doorCount; d++) drawLeaf(d * stepX, d === 0, d === doorCount - 1, d);
 
     const offOverall = 450; const offDetail = 220;  
-
-    drawDim(scale, oX, oY, 0, v.H, v.W, v.H, offOverall, Math.round(v.W), false, "dim_w_all"); 
+    drawDim(scale, oX, oY, 0, v.H, originalW, v.H, offOverall, Math.round(originalW), false, "dim_w_all"); 
     drawDim(scale, oX, oY, 0, v.H, v.TSL, v.H, offDetail, Math.round(v.TSL), false, "dim_w_tsl"); 
-    drawDim(scale, oX, oY, v.TSL, v.H, v.W-v.TSR, v.H, offDetail, Math.round(v.W-v.TSL-v.TSR), false, "dim_w_mid"); 
-    drawDim(scale, oX, oY, v.W-v.TSR, v.H, v.W, v.H, offDetail, Math.round(v.TSR), false, "dim_w_tsr"); 
+    drawDim(scale, oX, oY, v.TSL, v.H, originalW-v.TSR, v.H, offDetail, Math.round(originalW-v.TSL-v.TSR), false, "dim_w_mid"); 
+    drawDim(scale, oX, oY, originalW-v.TSR, v.H, originalW, v.H, offDetail, Math.round(v.TSR), false, "dim_w_tsr"); 
 
     drawDim(scale, oX, oY, 0, v.H, 0, 0, offOverall, Math.round(v.H), true, "dim_h_all"); 
     drawDim(scale, oX, oY, 0, v.H, 0, v.H - v.TT, offDetail, Math.round(v.TT), true, "dim_h_tt"); 
@@ -706,31 +866,67 @@ function generateDrawing() {
         drawDim(scale, oX, oY, 0, v.H - v.TT, 0, v.TB, offDetail, Math.round(v.H - v.TT - v.TB), true, "dim_h_mid_all");
     }
 
-    const py = v.H + 1000; line(0, py, v.W, py, 1); line(0, py+v.D, v.W, py+v.D, 1); line(0, py, 0, py+v.D, 1); line(v.W, py, v.W, py+v.D, 1);
-    line(v.TSL, py, v.TSL, py+v.D, 0.6); line(v.W-v.TSR, py, v.W-v.TSR, py+v.D, 0.6); 
-    drawDim(scale, oX, oY, v.TSL, py, 0, py, -150, Math.round(v.TSL), false, "dim_p_l");
-    drawDim(scale, oX, oY, v.W, py, v.W-v.TSR, py, -150, Math.round(v.TSR), false, "dim_p_r");
-    drawDim(scale, oX, oY, 0, py+v.D, 0, py, -150, Math.round(v.D), true, "dim_p_d");
+    const pyPlan = v.H + 1000; 
+    drawDim(scale, oX, oY, v.TSL, pyPlan, 0, pyPlan, -150, Math.round(v.TSL), false, "dim_p_l");
+    drawDim(scale, oX, oY, originalW, pyPlan, originalW-v.TSR, pyPlan, -150, Math.round(v.TSR), false, "dim_p_r");
+    drawDim(scale, oX, oY, 0, pyPlan+v.D, 0, pyPlan, -150, Math.round(v.D), true, "dim_p_d");
 
-    const sx = v.W + 600; line(sx, 0, sx+v.D, 0, 1); line(sx, v.H, sx+v.D, v.H, 1); line(sx, 0, sx, v.H, 1); line(sx+v.D, 0, sx+v.D, v.H, 1);
-    line(sx, v.TB, sx+v.D, v.TB, 0.6); line(sx, v.H-v.TT, sx+v.D, v.H-v.TT, 0.6);
+    const sx = originalW + 600; 
+    const lineS = (x1, y1, x2, y2, lw=0.6) => { outLine(oX+x1*scale, oY-y1*scale, oX+x2*scale, oY-y2*scale, lw); };
+    
+    if (v.drawKoguchiShape) {
+        const notchW = v.D * 0.4; 
+        const th = 12; 
+        const bh = 10; 
+        
+        lineS(sx, 0, sx, v.H + th, 1); 
+        lineS(sx+v.D, bh, sx+v.D, v.H, 1);
+        lineS(sx, v.H + th, sx + notchW, v.H + th, 1); 
+        lineS(sx + notchW, v.H + th, sx + notchW, v.H, 1); 
+        lineS(sx + notchW, v.H, sx + v.D, v.H, 1); 
+        
+        lineS(sx, 0, sx + notchW, 0, 1); 
+        lineS(sx + notchW, 0, sx + notchW, bh, 1); 
+        lineS(sx + notchW, bh, sx + v.D, bh, 1); 
+        
+    } else {
+        lineS(sx, 0, sx, v.H, 1); 
+        lineS(sx+v.D, 0, sx+v.D, v.H, 1);
+        lineS(sx, 0, sx+v.D, 0, 1); 
+        lineS(sx, v.H, sx+v.D, v.H, 1);
+    }
+
+    lineS(sx, v.TB, sx+v.D, v.TB, 0.6); 
+    lineS(sx, v.H-v.TT, sx+v.D, v.H-v.TT, 0.6);
     drawDim(scale, oX, oY, sx+v.D, v.TB, sx+v.D, 0, 100, Math.round(v.TB), true, "dim_s_b");
     drawDim(scale, oX, oY, sx+v.D, v.H, sx+v.D, v.H-v.TT, 100, Math.round(v.TT), true, "dim_s_t");
-    drawDim(scale, oX, oY, sx, 0, sx+v.D, 0, -100, Math.round(v.D), false, "dim_s_w");
+    
+    drawDim(scale, oX, oY, sx, v.H, sx+v.D, v.H, 100, Math.round(v.D), false, "dim_s_w_top_new");
+    drawDim(scale, oX, oY, sx, 0, sx+v.D, 0, -100, Math.round(v.D), false, "dim_s_w_bot_new");  
 
-    const sX = w - 440, sY = 20, tW = 420, colW = 80, headerH = 28, rowH = 22;
+    const sX = w - borderOffset - 420; const sY = borderOffset; const tW = 420; const colW = 80; const headerH = 28; const rowH = 22;
     const totalSpecH = headerH + (v.specLabels.length * rowH) + 28;
     outRect(sX, sY, tW, totalSpecH, 0.5); outLine(sX, sY + headerH, sX + tW, sY + headerH, 0.5);
     outLine(sX + colW, sY, sX + colW, sY + headerH + (v.specLabels.length * rowH), 0.5);
     for(let i=1; i<=v.specLabels.length; i++) outLine(sX, sY + headerH + i*rowH, sX + tW, sY + headerH + i*rowH, 0.5);
     outText("名称", sX + colW/2, sY + headerH/2, 13); outText("仕上 ・ 金物", sX + colW + (tW-colW)/2, sY + headerH/2, 13);
     v.specLabels.forEach((l, i) => { outText(l, sX+colW/2, sY+headerH+i*rowH+rowH/2, 12); outText(v.specValues[i], sX+colW+10, sY+headerH+i*rowH+rowH/2, 12, 0, "#000", "left"); });
-    outText(v.specNote, sX+10, sY+headerH+v.specLabels.length*rowH+14, 12, 0, "#c0392b", "left");
+    
+    const specNoteY = sY + headerH + v.specLabels.length * rowH + 14;
+    outText(v.specNote, sX+10, specNoteY, 12, 0, "#c0392b", "left");
+
+    let detailY = specNoteY + 25;
+    if (v.topKoguchi !== "---" || v.botKoguchi !== "---" || v.mabuiShape !== "---") {
+        outText("【 詳細形状 】", sX + 10, detailY, 12, 0, "#34495e", "left");
+        detailY += 18;
+        if (v.topKoguchi !== "---") { outText("上小口： " + v.topKoguchi, sX + 15, detailY, 11, 0, "#333", "left"); detailY += 16; }
+        if (v.botKoguchi !== "---") { outText("下小口： " + v.botKoguchi, sX + 15, detailY, 11, 0, "#333", "left"); detailY += 16; }
+        if (v.mabuiShape !== "---") { outText("マブイ(面取)： " + v.mabuiShape, sX + 15, detailY, 11, 0, "#333", "left"); }
+    }
 
     v.extraTexts.forEach(et => {
-        if(et.text.trim() === "") return;
-        const tx = oX + et.x*scale, ty = oY - et.y*scale; 
-        outText(et.text, tx, ty, 12, et.angle, "#000", "left");
+        if (window.hiddenTexts && window.hiddenTexts.includes(et.uid)) return;
+        const tx = oX + et.x*scale, ty = oY - et.y*scale; outText(et.text, tx, ty, 12, et.angle, "#000", "left");
         if(et.useArrow) {
             const ax = oX + et.ax*scale, ay = oY - et.ay*scale; outLine(tx, ty, ax, ay, 0.4);
             const headLen = 10*scale, angle = Math.atan2(ay-ty, ax-tx);
@@ -745,38 +941,63 @@ function drawPreview() { _isDXF = false; generateDrawing(); }
 function resetViewAndPrint() { viewZoom = 1.0; viewOffsetX = 0; viewOffsetY = 0; drawPreview(); setTimeout(() => window.print(), 200); }
 function exportDXF() { _isDXF = true; _dxfStr = "  0\r\nSECTION\r\n  2\r\nENTITIES\r\n"; generateDrawing(); _dxfStr += "  0\r\nENDSEC\r\n  0\r\nEOF\r\n"; _isDXF = false; const blob = new Blob([_dxfStr], { type: 'text/plain;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `建具図.dxf`; a.click(); }
 
-// イベント (独立消しゴム＆安全なUndo対応)
 document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById('previewCanvas');
     let isDragging = false, dragStartX = 0, dragStartY = 0;
-    let dragTargetText = null, dragTargetArrow = null, dragTargetOpening = null, dragTargetDim = null;
+    let dragTargetText = null, dragTargetArrow = null, dragTargetOpening = null, dragTargetDim = null, dragTargetHikite = null;
     
-    canvas.addEventListener('mousedown', (e) => {
+    const getEvtCoords = (e) => {
+        if (e.touches && e.touches.length > 0) return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+        return { clientX: e.clientX, clientY: e.clientY };
+    };
+
+    const handleDown = (e) => {
+        if (e.touches && e.touches.length > 1) return;
+        const coords = getEvtCoords(e);
+        
         const rect = canvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left - viewOffsetX) / viewZoom, my = (e.clientY - rect.top - viewOffsetY) / viewZoom;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const rawX = (coords.clientX - rect.left) * scaleX;
+        const rawY = (coords.clientY - rect.top) * scaleY;
+        const mx = (rawX - viewOffsetX) / viewZoom;
+        const my = (rawY - viewOffsetY) / viewZoom;
+        
         const v = getValues();
         
-        dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null;
+        dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null; dragTargetHikite = null;
         
-        for(let op of v.openings) { if (mx >= lastOriginX + op.x * lastScale && mx <= lastOriginX + (op.x + op.w) * lastScale && my >= lastOriginY - op.y * lastScale - op.h * lastScale && my <= lastOriginY - op.y * lastScale) { dragTargetOpening = op; break; } }
-        if(!dragTargetOpening) { 
+        if (window.clickableHikites && !isEraserMode) {
+            for(let hk of window.clickableHikites) {
+                if (mx >= hk.rectX && mx <= hk.rectX + hk.rectW && my >= hk.rectY && my <= hk.rectY + hk.rectH) { 
+                    const chk = document.getElementById('hk' + hk.leafNum + '_movable');
+                    if (chk && chk.checked) { dragTargetHikite = hk; break; }
+                }
+            }
+        }
+        
+        if(!dragTargetHikite && window.clickableOpenings) {
+            for(let cop of window.clickableOpenings) {
+                if (mx >= cop.rectX && mx <= cop.rectX + cop.rectW && my >= cop.rectY && my <= cop.rectY + cop.rectH) { dragTargetOpening = cop; break; }
+            }
+        }
+        
+        if(!dragTargetHikite && !dragTargetOpening) { 
             for(let et of v.extraTexts) { 
-                if(et.useArrow && Math.hypot(mx - (lastOriginX + et.ax * lastScale), my - (lastOriginY - et.ay * lastScale)) < 15) { 
-                    dragTargetArrow = et; break; 
-                } 
-                if(Math.hypot(mx - (lastOriginX + et.x * lastScale), my - (lastOriginY - et.y * lastScale)) < 25) { 
-                    dragTargetText = et; break; 
-                } 
+                if (window.hiddenTexts && window.hiddenTexts.includes(et.uid)) continue;
+                if(et.useArrow && Math.hypot(mx - (lastOriginX + et.ax * lastScale), my - (lastOriginY - et.ay * lastScale)) < 40) { dragTargetArrow = et; break; } 
+                if(Math.hypot(mx - (lastOriginX + et.x * lastScale), my - (lastOriginY - et.y * lastScale)) < 40) { dragTargetText = et; break; } 
             } 
         }
-        if(!dragTargetOpening && !dragTargetArrow && !dragTargetText) {
+        
+        if(!dragTargetHikite && !dragTargetOpening && !dragTargetArrow && !dragTargetText) {
             for(let dim of window.clickableDims) {
                 if (dim.type === 'text' && !window.hiddenDimTexts.includes(dim.id)) {
-                    if (Math.hypot(mx - dim.cx, my - dim.cy) < 20) { dragTargetDim = dim; break; }
+                    if (Math.hypot(mx - dim.cx, my - dim.cy) < 30) { dragTargetDim = dim; break; }
                 }
                 if (dim.type === 'line' && !window.hiddenDimLines.includes(dim.id)) {
-                    if (!dim.isVert && Math.abs(my - dim.y) < 15 && mx >= dim.x1 - 5 && mx <= dim.x2 + 5) { dragTargetDim = dim; break; }
-                    if (dim.isVert && Math.abs(mx - dim.x) < 15 && my >= dim.y1 - 5 && my <= dim.y2 + 5) { dragTargetDim = dim; break; }
+                    if (!dim.isVert && Math.abs(my - dim.y) < 20 && mx >= dim.x1 - 5 && mx <= dim.x2 + 5) { dragTargetDim = dim; break; }
+                    if (dim.isVert && Math.abs(mx - dim.x) < 20 && my >= dim.y1 - 5 && my <= dim.y2 + 5) { dragTargetDim = dim; break; }
                 }
             }
         }
@@ -785,62 +1006,98 @@ document.addEventListener("DOMContentLoaded", () => {
             let hitEraser = false;
             if (dragTargetDim) {
                 if (dragTargetDim.type === 'text') {
-                    if (!window.hiddenDimTexts.includes(dragTargetDim.id)) {
-                        window.hiddenDimTexts.push(dragTargetDim.id);
-                        window.eraserHistory.push({ type: 'dimText', id: dragTargetDim.id });
-                    }
+                    if (!window.hiddenDimTexts.includes(dragTargetDim.id)) { window.hiddenDimTexts.push(dragTargetDim.id); window.eraserHistory.push({ type: 'dimText', id: dragTargetDim.id }); }
                 } else {
-                    if (!window.hiddenDimLines.includes(dragTargetDim.id)) {
-                        window.hiddenDimLines.push(dragTargetDim.id);
-                        window.eraserHistory.push({ type: 'dimLine', id: dragTargetDim.id });
-                    }
+                    if (!window.hiddenDimLines.includes(dragTargetDim.id)) { window.hiddenDimLines.push(dragTargetDim.id); window.eraserHistory.push({ type: 'dimLine', id: dragTargetDim.id }); }
                 }
                 hitEraser = true;
             } else if (dragTargetText || dragTargetArrow) {
-                const target = dragTargetText || dragTargetArrow;
-                const rowEl = target.rowEl;
-                window.eraserHistory.push({ type: 'domNode', parent: rowEl.parentNode, nextSibling: rowEl.nextSibling, el: rowEl });
-                rowEl.remove();
+                const target = dragTargetText || dragTargetArrow; 
+                window.hiddenTexts.push(target.uid); 
+                window.eraserHistory.push({ type: 'text', id: target.uid }); 
                 hitEraser = true;
             } else if (dragTargetOpening) {
-                const rowEl = dragTargetOpening.rowEl;
-                window.eraserHistory.push({ type: 'domNode', parent: rowEl.parentNode, nextSibling: rowEl.nextSibling, el: rowEl });
-                rowEl.remove();
+                window.hiddenOpenings.push(dragTargetOpening.id); 
+                window.eraserHistory.push({ type: 'opening', id: dragTargetOpening.id }); 
+                hitEraser = true;
+            } else if (dragTargetHikite) {
+                window.hiddenHikites.push(dragTargetHikite.id); 
+                window.eraserHistory.push({ type: 'hikite', id: dragTargetHikite.id }); 
                 hitEraser = true;
             }
-
-            dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null;
-            isDragging = true; 
-            dragStartX = e.clientX; dragStartY = e.clientY;
+            
+            dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null; dragTargetHikite = null;
+            isDragging = true; dragStartX = coords.clientX; dragStartY = coords.clientY;
             if (hitEraser) drawPreview();
             return;
         }
 
-        isDragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
-    });
-    
-    canvas.addEventListener('mousemove', (e) => {
+        isDragging = true; dragStartX = coords.clientX; dragStartY = coords.clientY;
+    };
+
+    const handleMove = (e) => {
         if(!isDragging) return;
-        const dx = (e.clientX - dragStartX) / viewZoom;
-        const dy = (e.clientY - dragStartY) / viewZoom;
+        if (e.touches && e.touches.length > 1) return;
+        if (e.cancelable) e.preventDefault(); 
+        
+        const coords = getEvtCoords(e);
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        const dx = (coords.clientX - dragStartX) * scaleX / viewZoom; 
+        const dy = (coords.clientY - dragStartY) * scaleY / viewZoom;
         const dxScale = dx / lastScale; 
         const dyScale = dy / lastScale;
 
-        if(dragTargetOpening) { dragTargetOpening.x += dxScale; dragTargetOpening.y -= dyScale; dragTargetOpening.elX.value = Math.round(dragTargetOpening.x); dragTargetOpening.elY.value = Math.round(dragTargetOpening.y); drawPreview(); }
-        else if(dragTargetArrow) { dragTargetArrow.ax += dxScale; dragTargetArrow.ay -= dyScale; dragTargetArrow.elAX.value = Math.round(dragTargetArrow.ax); dragTargetArrow.elAY.value = Math.round(dragTargetArrow.ay); drawPreview(); }
-        else if(dragTargetText) { dragTargetText.x += dxScale; dragTargetText.y -= dyScale; dragTargetText.elX.value = Math.round(dragTargetText.x); dragTargetText.elY.value = Math.round(dragTargetText.y); drawPreview(); }
-        else if(dragTargetDim) {
-            window.customDimOffsets[dragTargetDim.id] = window.customDimOffsets[dragTargetDim.id] || {x: 0, y: 0};
-            if (dragTargetDim.isVert) { window.customDimOffsets[dragTargetDim.id].x += dx; } 
-            else { window.customDimOffsets[dragTargetDim.id].y += dy; }
+        if(dragTargetHikite) {
+            window.customHikiOffsets[dragTargetHikite.id] = window.customHikiOffsets[dragTargetHikite.id] || {x: 0, y: 0};
+            window.customHikiOffsets[dragTargetHikite.id].x += dx; window.customHikiOffsets[dragTargetHikite.id].y += dy;
             drawPreview();
         }
-        else { viewOffsetX += e.clientX - dragStartX; viewOffsetY += e.clientY - dragStartY; drawPreview(); }
+        else if(dragTargetOpening) { 
+            window.customOpeningOffsets[dragTargetOpening.id] = window.customOpeningOffsets[dragTargetOpening.id] || {x: 0, y: 0};
+            window.customOpeningOffsets[dragTargetOpening.id].x += dx; window.customOpeningOffsets[dragTargetOpening.id].y += dy;
+            drawPreview(); 
+        }
+        else if(dragTargetArrow) { 
+            dragTargetArrow.ax += dxScale; dragTargetArrow.ay -= dyScale; 
+            if (dragTargetArrow.elAX) dragTargetArrow.elAX.value = Math.round(dragTargetArrow.ax); 
+            if (dragTargetArrow.elAY) dragTargetArrow.elAY.value = Math.round(dragTargetArrow.ay); 
+            drawPreview(); 
+        }
+        else if(dragTargetText) { 
+            dragTargetText.x += dxScale; dragTargetText.y -= dyScale; 
+            if (dragTargetText.elX) dragTargetText.elX.value = Math.round(dragTargetText.x); 
+            if (dragTargetText.elY) dragTargetText.elY.value = Math.round(dragTargetText.y); 
+            drawPreview(); 
+        }
+        else if(dragTargetDim) {
+            window.customDimOffsets[dragTargetDim.id] = window.customDimOffsets[dragTargetDim.id] || {x: 0, y: 0};
+            if (dragTargetDim.isVert) { window.customDimOffsets[dragTargetDim.id].x += dx; } else { window.customDimOffsets[dragTargetDim.id].y += dy; }
+            drawPreview();
+        }
+        else { 
+            viewOffsetX += (coords.clientX - dragStartX) * scaleX; 
+            viewOffsetY += (coords.clientY - dragStartY) * scaleY; 
+            drawPreview(); 
+        }
         
-        dragStartX = e.clientX; dragStartY = e.clientY;
-    });
+        dragStartX = coords.clientX; dragStartY = coords.clientY;
+    };
+
+    const handleUp = () => {
+        isDragging = false; dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null; dragTargetHikite = null; 
+    };
+
+    canvas.addEventListener('mousedown', handleDown);
+    window.addEventListener('mousemove', handleMove, {passive: false});
+    window.addEventListener('mouseup', handleUp);
     
-    window.addEventListener('mouseup', () => { isDragging = false; dragTargetText = null; dragTargetArrow = null; dragTargetOpening = null; dragTargetDim = null; });
+    canvas.addEventListener('touchstart', handleDown, {passive: false});
+    window.addEventListener('touchmove', handleMove, {passive: false});
+    window.addEventListener('touchend', handleUp);
+    
     canvas.addEventListener('wheel', (e) => { e.preventDefault(); const rect = canvas.getBoundingClientRect(); const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top; const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9; const worldX = (mouseX - viewOffsetX) / viewZoom, worldY = (mouseY - viewOffsetY) / viewZoom; viewZoom = Math.max(0.1, Math.min(viewZoom * zoomFactor, 10)); viewOffsetX = mouseX - worldX * viewZoom; viewOffsetY = mouseY - worldY * viewZoom; drawPreview(); }, { passive: false });
     canvas.addEventListener('dblclick', () => { viewZoom=1; viewOffsetX=0; viewOffsetY=0; drawPreview(); });
 });
